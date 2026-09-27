@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import * as z from 'zod'
 import type { GoogleAuth } from '../../auth/google.ts'
-import { setSessionCookie, sessionUser, withSession } from '../../auth/session.ts'
+import { clearSessionCookie, setSessionCookie, sessionUser, withSession } from '../../auth/session.ts'
 import type { Config } from '../../config/config.ts'
 import type { Drive } from '../../drive/drive.ts'
 import type { Users } from '../../store/users.ts'
@@ -62,6 +62,18 @@ export function authRoutes({ cfg, users, googleAuth, drive }: AuthRouteDeps): Ro
       await users.upsert({ id: user.id, email: user.email, refreshToken: tokens.refreshToken })
     }
     res.json({ accessToken: tokens.accessToken })
+  })
+
+  // Not in TRD §8's four endpoints, and added deliberately (docs/process.md §2). TRD §5
+  // describes how the session cookie is created and never how it ends, but the cookie is
+  // httpOnly — which is the whole point of §2.3 — so the client physically cannot clear it.
+  // Without this, "sign out" clears some React state and the next reload is signed in again.
+  //
+  // This ends *our* session only. Google's grant is separate and survives, by design: the
+  // user revokes that at myaccount.google.com/permissions, not here.
+  router.post('/signout', (_req, res) => {
+    clearSessionCookie(res)
+    res.status(204).end()
   })
 
   return router

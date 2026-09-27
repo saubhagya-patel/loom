@@ -53,7 +53,7 @@ export default function App() {
           ? 'Your “loom” folder is ready in Drive.'
           : 'No folder yet — sign in again to create one.'}
       </p>
-      <button onClick={session.signOut}>Sign out</button>
+      <button onClick={() => void session.signOut()}>Sign out</button>
     </main>
   )
 }

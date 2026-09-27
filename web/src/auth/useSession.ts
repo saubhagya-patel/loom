@@ -25,7 +25,7 @@ async function refreshAccessToken(): Promise<boolean> {
 
 export function useSession(): SessionState & {
   signIn: () => Promise<void>
-  signOut: () => void
+  signOut: () => Promise<void>
 } {
   const [state, setState] = useState<SessionState>({ status: 'loading' })
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -92,7 +92,15 @@ export function useSession(): SessionState & {
     }
   }, [startRefreshLoop])
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    // The session cookie is httpOnly, so only the server can drop it. Clearing local state
+    // alone leaves the cookie in place and the next reload signs straight back in.
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' })
+    } catch {
+      // Offline, say. Still drop the local token — a cookie we failed to clear is a worse
+      // outcome than a stale one, but keeping the access token in memory is worse than both.
+    }
     setAccessToken(null)
     if (timer.current) clearInterval(timer.current)
     setState({ status: 'signed-out' })
