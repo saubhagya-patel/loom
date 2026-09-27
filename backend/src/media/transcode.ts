@@ -75,8 +75,12 @@ async function toJpegStream(input: Buffer): Promise<Readable> {
  * outliving the request, and no cleanup path that can leak. The *output* still streams into
  * Drive in 8 MiB chunks via drive-sink.ts.
  */
-export function transcodeToDrive(req: Request, sessionUri: string, maxBytes: number): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
+export function transcodeToDrive(
+  req: Request,
+  sessionUri: string,
+  maxBytes: number,
+): Promise<{ driveFileId: string; bytes: number }> {
+  return new Promise<{ driveFileId: string; bytes: number }>((resolve, reject) => {
     const bb = busboy({ headers: req.headers, limits: { files: 1, fields: 4, fileSize: maxBytes } })
     let sawFile = false
 

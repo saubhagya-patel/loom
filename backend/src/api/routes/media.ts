@@ -49,11 +49,13 @@ export function mediaRoutes(users: Users): Router {
       throw new AppError(400, 'invalid_request', 'a drive upload session is required')
     }
 
-    const driveFileId = await transcodeToDrive(req, sessionUri, MAX_UPLOAD_BYTES)
+    const { driveFileId, bytes } = await transcodeToDrive(req, sessionUri, MAX_UPLOAD_BYTES)
 
-    // TRD §8.4's shape. The id is fine in a response — the client needs it to verify — but it
-    // never reaches a log line (§2.8).
-    res.json({ status: 'success', driveFileId })
+    // TRD §8.4's shape plus `bytes`, added deliberately. The client sent a HEIC and Drive now
+    // holds a JPEG, so the only size it could verify against is the one we just wrote — and
+    // without it TRD §9's guardrail can never pass on this route. The id and the count are
+    // fine in a response; neither reaches a log line (§2.8).
+    res.json({ status: 'success', driveFileId, bytes })
   })
 
   return router

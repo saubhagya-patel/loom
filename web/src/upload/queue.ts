@@ -266,13 +266,18 @@ export function createQueue(deps: {
       return fail(id, payload?.error?.message ?? 'the conversion failed')
     }
 
-    const payload = (await res.json()) as { driveFileId?: string }
+    const payload = (await res.json()) as { driveFileId?: string; bytes?: number }
     if (!payload.driveFileId) return fail(id, 'the converter returned no file')
 
-    // VERIFYING is not skipped here. This is the route with the least direct evidence the bytes
-    // arrived, and it gates TRD §9's deletion guardrail.
+    // What Drive holds is the server's JPEG, not the HEIC that was picked, so verifying
+    // against the original file's size would compare two unrelated numbers and always fail.
+    // The server reports what it wrote; verify() then checks Drive agrees with that.
+    if (typeof payload.bytes !== 'number') return fail(id, 'the converter reported no size')
+    update(id, { size: payload.bytes })
+
+    // VERIFYING is not skipped here. This is the route with the least direct evidence the
+    // bytes arrived, and it gates TRD §9's deletion guardrail.
     entry.record.driveFileId = payload.driveFileId
-    update(id, { size: entry.item.size })
     return verify(entry, payload.driveFileId)
   }
 

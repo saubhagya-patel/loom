@@ -6,7 +6,8 @@ const FLUSH_BYTES = 8 * 1024 * 1024
 
 export type DriveSink = {
   write: (chunk: Buffer) => Promise<void>
-  end: () => Promise<string>
+  /** The Drive file id, and the byte count actually written — the client cannot know it. */
+  end: () => Promise<{ driveFileId: string; bytes: number }>
 }
 
 /**
@@ -72,7 +73,7 @@ export function createDriveSink(sessionUri: string): DriveSink {
 
       const id = await put(last, `bytes ${offset}-${total - 1}/${total}`)
       if (!id) throw new AppError(502, 'drive_incomplete', 'drive did not finish the upload')
-      return id
+      return { driveFileId: id, bytes: total }
     },
   }
 }
