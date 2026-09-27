@@ -5,6 +5,10 @@ import { defineConfig } from 'vite'
 // origin in development, so there is no CORS to configure, no base URL in the
 // frontend code, and the session cookie in Phase 1 is same-site by construction
 // (docs/plan.md §2.3).
+// Overridable so the e2e run can point at its own API port (8099) while a
+// development server holds 8080.
+const target = process.env['LUMA_API_TARGET'] ?? 'http://127.0.0.1:8080'
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -12,8 +16,8 @@ export default defineConfig({
     // against 127.0.0.1 would find nothing listening.
     host: '127.0.0.1',
     proxy: {
-      '/api': { target: 'http://127.0.0.1:8080', changeOrigin: true },
-      '/healthz': { target: 'http://127.0.0.1:8080', changeOrigin: true },
+      '/api': { target, changeOrigin: true },
+      '/healthz': { target, changeOrigin: true },
     },
   },
 })
