@@ -10,9 +10,11 @@ const POSTMESSAGE = 'postmessage'
 export type GoogleTokens = { accessToken: string; refreshToken?: string; expiresInS: number }
 export type GoogleIdentity = { sub: string; email: string }
 export type GoogleAuth = {
-  exchangeCode: (code: string) => Promise<GoogleTokens & GoogleIdentity>
+  exchangeCode: (code: string, pageOrigin: string) => Promise<GoogleTokens & GoogleIdentity>
   refresh: (refreshToken: string) => Promise<GoogleTokens>
 }
+
+const USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v3/userinfo'
 
 type TokenResponse = {
   access_token: string
@@ -61,24 +63,54 @@ function toTokens(raw: TokenResponse): GoogleTokens {
   return tokens
 }
 
+function asIdentity(claims: { sub?: unknown; email?: unknown }): GoogleIdentity | null {
+  return typeof claims.sub === 'string' && typeof claims.email === 'string'
+    ? { sub: claims.sub, email: claims.email }
+    : null
+}
+
 // The id_token arrives over TLS directly from Google's token endpoint, in response to a
 // request carrying our client secret. That is the one documented case where the signature
 // need not be re-verified, so this reads the claims rather than pulling in a JWKS client.
-function identityFrom(idToken: string | undefined): GoogleIdentity {
+function identityFromIdToken(idToken: string | undefined): GoogleIdentity | null {
   const payload = idToken?.split('.')[1]
-  if (!payload) throw new AppError(502, 'google_bad_response', 'google returned no identity')
-
-  let claims: { sub?: unknown; email?: unknown }
+  if (!payload) return null
   try {
-    claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as typeof claims
+    const claims: unknown = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+    return claims && typeof claims === 'object' ? asIdentity(claims) : null
   } catch {
-    throw new AppError(502, 'google_bad_response', 'google returned an unreadable identity')
+    return null
   }
+}
 
-  if (typeof claims.sub !== 'string' || typeof claims.email !== 'string') {
-    throw new AppError(502, 'google_bad_response', 'google identity is missing sub or email')
+// Google does not always return an id_token from a code exchange — notably on a
+// re-authorisation where consent already exists. Rather than fail a sign-in that is
+// otherwise fine, ask the userinfo endpoint, which the same `openid email` grant covers.
+async function identityFromUserinfo(accessToken: string): Promise<GoogleIdentity | null> {
+  try {
+    const res = await fetch(USERINFO_ENDPOINT, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (!res.ok) return null
+    return asIdentity((await res.json()) as { sub?: unknown; email?: unknown })
+  } catch {
+    return null
   }
-  return { sub: claims.sub, email: claims.email }
+}
+
+async function resolveIdentity(raw: TokenResponse): Promise<GoogleIdentity> {
+  const identity =
+    identityFromIdToken(raw.id_token) ?? (await identityFromUserinfo(raw.access_token))
+  if (!identity) {
+    // Almost always means the authorization request carried no identity scope, so there is
+    // no sub or email to be had — see the SCOPE comment in web/src/auth/gis.ts.
+    throw new AppError(
+      502,
+      'google_bad_response',
+      'google returned no identity; the sign-in scope must include openid and email',
+    )
+  }
+  return identity
 }
 
 export function createGoogleAuth(cfg: Config, logger: Logger): GoogleAuth {
@@ -90,15 +122,24 @@ export function createGoogleAuth(cfg: Config, logger: Logger): GoogleAuth {
   // Same idea as the extranet-backend content cache — a value filled once, read freely after
   // — but held in this factory's closure rather than at module scope, so it still arrives as
   // a dependency and cannot be reached or mutated from elsewhere (docs/process.md §6).
-  let learnedRedirectUri: string | null = null
+  // What is learned is the *strategy*, not a literal URI. The page origin differs between
+  // http://localhost:5173 and http://127.0.0.1:5173 — the same dev server, two origins — and
+  // caching one of those strings would send the wrong one the moment the other is used.
+  let learnedStrategy: 'origin' | 'postmessage' | null = null
 
   return {
-    exchangeCode: async (code) => {
-      // Once known, one candidate. Until then, the documented answer first.
-      const candidates = learnedRedirectUri ? [learnedRedirectUri] : [cfg.webOrigin, POSTMESSAGE]
+    exchangeCode: async (code, pageOrigin) => {
+      // GIS documents redirect_uri in popup mode as "the origin of the calling page", so the
+      // candidate is the origin this request actually came from, not a configured constant.
+      const forStrategy = (s: 'origin' | 'postmessage'): string =>
+        s === 'origin' ? pageOrigin : POSTMESSAGE
+      const strategies: ('origin' | 'postmessage')[] = learnedStrategy
+        ? [learnedStrategy]
+        : ['origin', 'postmessage']
       let lastError = 'unknown'
 
-      for (const redirectUri of candidates) {
+      for (const strategy of strategies) {
+        const redirectUri = forStrategy(strategy)
         const result = await post(
           new URLSearchParams({
             code,
@@ -110,13 +151,13 @@ export function createGoogleAuth(cfg: Config, logger: Logger): GoogleAuth {
         )
 
         if (result.ok) {
-          if (learnedRedirectUri !== redirectUri) {
-            learnedRedirectUri = redirectUri
+          if (learnedStrategy !== strategy) {
+            learnedStrategy = strategy
             // Configuration, not media, so it is allowed in a log — and it is the answer we
             // want to promote into knowledge.md and eventually hard-code.
-            logger.info({ redirectUri }, 'learned google redirect_uri')
+            logger.info({ strategy, redirectUri }, 'learned google redirect_uri')
           }
-          return { ...toTokens(result.data), ...identityFrom(result.data.id_token) }
+          return { ...toTokens(result.data), ...(await resolveIdentity(result.data)) }
         }
 
         lastError = result.error

@@ -23,7 +23,11 @@ export function authRoutes({ cfg, users, googleAuth, drive }: AuthRouteDeps): Ro
     const parsed = exchangeBody.safeParse(req.body)
     if (!parsed.success) throw new AppError(400, 'invalid_request', 'a code is required')
 
-    const google = await googleAuth.exchangeCode(parsed.data.code)
+    // The redirect_uri Google wants in popup mode is the calling page's origin, so it comes
+    // from the request rather than from config — requireOrigin has already vetted it, and
+    // localhost vs 127.0.0.1 would otherwise mismatch.
+    const pageOrigin = req.get('origin') ?? cfg.webOrigin
+    const google = await googleAuth.exchangeCode(parsed.data.code, pageOrigin)
 
     // Read the existing row before writing, so we know whether a folder already belongs to
     // this user — this is what stops a second sign-in creating a second folder.

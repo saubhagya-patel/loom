@@ -26,18 +26,39 @@ function requestLogger(logger: Logger): RequestHandler {
   }
 }
 
+// `localhost` and `127.0.0.1` are the same dev server but two different origins — to
+// browsers, and to Google (agent-cache/knowledge.md). vite pins 127.0.0.1 while typing
+// "localhost:5173" is the more natural thing to do, so when the configured origin is
+// loopback its sibling is accepted too. A non-loopback origin gets no siblings: a real
+// deployment allows exactly what it was configured with.
+function allowedOrigins(webOrigin: string): Set<string> {
+  const allowed = new Set([webOrigin])
+  const url = new URL(webOrigin) // already validated as a URL by config.ts
+  const sibling =
+    url.hostname === '127.0.0.1' ? 'localhost' : url.hostname === 'localhost' ? '127.0.0.1' : null
+  if (sibling) {
+    url.hostname = sibling
+    allowed.add(url.origin)
+  }
+  return allowed
+}
+
 // Half of the V1 CSRF answer; SameSite=Lax on the session cookie is the other half
 // (docs/plan.md §2.3). A browser always sends Origin on a cross-site POST, so a mismatch is
 // decisive. Its *absence* is not an attack signal — same-origin requests and non-browser
 // clients both omit it — so only a present-and-wrong Origin is rejected.
-function requireOrigin(cfg: Config): RequestHandler {
+function requireOrigin(cfg: Config, logger: Logger): RequestHandler {
+  const allowed = allowedOrigins(cfg.webOrigin)
   return (req, _res, next) => {
     if (req.method !== 'POST') {
       next()
       return
     }
     const origin = req.get('origin')
-    if (origin !== undefined && origin !== cfg.webOrigin) {
+    if (origin !== undefined && !allowed.has(origin)) {
+      // An Origin is neither media nor a credential, and a rejection that does not say what
+      // it saw costs a debugging session — this one already did.
+      logger.warn({ origin, allowed: [...allowed] }, 'rejected a post from an unknown origin')
       next(new AppError(403, 'bad_origin', 'origin not allowed'))
       return
     }
@@ -71,7 +92,7 @@ export function createApp({
   app.use(requestLogger(logger))
   // Ahead of the body parser on purpose: a POST from a foreign origin is refused before we
   // spend anything reading or parsing what it sent.
-  app.use(requireOrigin(cfg))
+  app.use(requireOrigin(cfg, logger))
   app.use(express.json())
 
   app.get('/healthz', healthHandler(logger, db, healthTimeoutMs))

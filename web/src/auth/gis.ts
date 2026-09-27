@@ -1,5 +1,10 @@
 const GIS_SRC = 'https://accounts.google.com/gsi/client'
-const SCOPE = 'https://www.googleapis.com/auth/drive.file'
+// TRD §5.1 names drive.file alone, but TRD §4 keys the users table on Google's `sub` and
+// stores the email — and no amount of drive.file returns either. The identity scopes are
+// therefore required by the data model, and this is a deliberate, recorded widening
+// (docs/process.md §2). `openid email` is the smallest pair that yields sub + email; profile
+// is not requested, so no name or picture is ever granted.
+const SCOPE = 'openid email https://www.googleapis.com/auth/drive.file'
 
 type CodeResponse = { code?: string; error?: string }
 type CodeClient = { requestCode: () => void }
