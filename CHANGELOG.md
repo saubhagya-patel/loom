@@ -10,6 +10,25 @@ completes.
 
 ## Unreleased
 
+### Phase 3 — The HEIC pipeline · 2026-09-21
+
+iPhone photos land in Drive as something you can actually open, by whichever of TRD §6's three
+routes you pick: converted in your browser (the default, and nothing leaves your device),
+converted on our server for older phones, or uploaded as-is. The decision modal appears only
+when a batch really contains HEIC — decided by the file's magic bytes, never its name, so a
+JPEG that iOS silently substituted is spotted and passed through untouched.
+
+The server route is the one exception to zero-knowledge storage, and it is fenced accordingly:
+a 32 MiB cap enforced before a byte is read, the upload session URI checked against Google's
+own host so the endpoint cannot be turned into a relay, nothing written to disk, nothing
+outliving the request, and no filename, size, type or id in any log line.
+
+Two libraries named in the plan could not do the job. `heic2any` needs a DOM and so cannot run
+in the Worker that keeps the queue responsive, and `sharp`'s bundled libheif cannot decode HEVC
+HEIC at all. Both were replaced by libheif via WebAssembly, with each side encoding natively —
+and on an iPhone, Safari's own decoder is used first, so the 2 MB of WebAssembly is never
+downloaded.
+
 ### Phase 2 — The resumable upload engine · 2026-09-15
 
 Files go straight from the browser into your Drive, in 8 MiB chunks, and survive a network drop
