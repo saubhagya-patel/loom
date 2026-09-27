@@ -15,7 +15,10 @@ sharp.concurrency(1)
 // An iPhone still is about 12 MP, so 50 MP refuses a decompression bomb with room to spare —
 // and it is checked against the reported dimensions *before* anything is decoded.
 const MAX_PIXELS = 50_000_000
-const QUALITY = 88
+// Matches web/src/heic/convert.ts. One product, one fidelity promise — and 0.91 rather than
+// 100 because JPEG at maximum is still lossy, the source is already lossy HEIC, and it costs
+// 2.5x the bytes to preserve artifacts we did not create.
+const QUALITY = 91
 
 const HEIC_BRANDS = new Set(['heic', 'heix', 'heim', 'heis', 'hevc', 'hevx', 'hevm', 'hevs', 'mif1', 'msf1'])
 
