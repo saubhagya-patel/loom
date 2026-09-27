@@ -1,8 +1,16 @@
+import cookieParser from 'cookie-parser'
 import express, { type Express, type RequestHandler } from 'express'
+import helmet from 'helmet'
 import type { Logger } from 'pino'
+import type { GoogleAuth } from '../auth/google.ts'
+import type { Config } from '../config/config.ts'
+import type { Drive } from '../drive/drive.ts'
 import type { Pinger } from '../store/store.ts'
-import { errorHandler, notFound } from './errors.ts'
+import type { Users } from '../store/users.ts'
+import { AppError, errorHandler, notFound } from './errors.ts'
 import { healthHandler } from './health.ts'
+import { authRoutes } from './routes/auth.ts'
+import { userRoutes } from './routes/user.ts'
 
 // Method, path, status and duration — and deliberately nothing else. A filename
 // must never reach a log line, which is also why no Loom endpoint takes one in a
@@ -18,19 +26,57 @@ function requestLogger(logger: Logger): RequestHandler {
   }
 }
 
+// Half of the V1 CSRF answer; SameSite=Lax on the session cookie is the other half
+// (docs/plan.md §2.3). A browser always sends Origin on a cross-site POST, so a mismatch is
+// decisive. Its *absence* is not an attack signal — same-origin requests and non-browser
+// clients both omit it — so only a present-and-wrong Origin is rejected.
+function requireOrigin(cfg: Config): RequestHandler {
+  return (req, _res, next) => {
+    if (req.method !== 'POST') {
+      next()
+      return
+    }
+    const origin = req.get('origin')
+    if (origin !== undefined && origin !== cfg.webOrigin) {
+      next(new AppError(403, 'bad_origin', 'origin not allowed'))
+      return
+    }
+    next()
+  }
+}
+
 export type AppDeps = {
   logger: Logger
   db: Pinger
   healthTimeoutMs: number
+  cfg: Config
+  users: Users
+  googleAuth: GoogleAuth
+  drive: Drive
 }
 
-export function createApp({ logger, db, healthTimeoutMs }: AppDeps): Express {
+export function createApp({
+  logger,
+  db,
+  healthTimeoutMs,
+  cfg,
+  users,
+  googleAuth,
+  drive,
+}: AppDeps): Express {
   const app = express()
   app.disable('x-powered-by')
-  app.use(express.json())
+  app.use(helmet())
+  app.use(cookieParser(cfg.sessionSecret))
   app.use(requestLogger(logger))
+  // Ahead of the body parser on purpose: a POST from a foreign origin is refused before we
+  // spend anything reading or parsing what it sent.
+  app.use(requireOrigin(cfg))
+  app.use(express.json())
 
   app.get('/healthz', healthHandler(logger, db, healthTimeoutMs))
+  app.use('/api/auth', authRoutes({ cfg, users, googleAuth, drive }))
+  app.use('/api/user', userRoutes(users))
 
   app.use(notFound())
   app.use(errorHandler(logger))

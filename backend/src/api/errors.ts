@@ -35,6 +35,18 @@ export function errorHandler(logger: Logger): ErrorRequestHandler {
       res.status(err.status).json({ error: { code: err.code, message: err.message } })
       return
     }
+
+    // express.json() and friends throw http-errors carrying their own status and an
+    // `expose` flag. Without this a malformed JSON body answers 500 — blaming us for the
+    // client's mistake, and hiding real 500s among the noise. The message stays ours: theirs
+    // quotes the offending input, which is exactly what must not be echoed (docs/plan.md §2.8).
+    const status: unknown = (err as { status?: unknown }).status
+    const expose: unknown = (err as { expose?: unknown }).expose
+    if (typeof status === 'number' && status >= 400 && status < 500 && expose === true) {
+      res.status(status).json({ error: { code: 'invalid_request', message: 'malformed request' } })
+      return
+    }
+
     res.status(500).json({ error: { code: 'internal', message: 'internal server error' } })
   }
 }

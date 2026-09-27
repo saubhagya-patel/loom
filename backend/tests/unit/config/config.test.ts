@@ -4,8 +4,18 @@ import { loadConfig } from '../../../src/config/config.ts'
 
 const VALID_URL = 'mysql://loom:loom@127.0.0.1:3307/loom'
 
+// Phase 1 made four more values required. REQUIRED is "the smallest env that loads", so the
+// defaults test below still asserts defaults rather than asserting these.
+const REQUIRED = {
+  DATABASE_URL: VALID_URL,
+  LOOM_GOOGLE_CLIENT_ID: 'test-client-id',
+  LOOM_GOOGLE_CLIENT_SECRET: 'test-client-secret',
+  LOOM_TOKEN_KEY: Buffer.alloc(32, 7).toString('base64'),
+  LOOM_SESSION_SECRET: 'test-session-secret-value',
+}
+
 test('applies defaults when only the required values are present', () => {
-  const cfg = loadConfig({ DATABASE_URL: VALID_URL })
+  const cfg = loadConfig(REQUIRED)
 
   assert.equal(cfg.databaseUrl, VALID_URL)
   assert.equal(cfg.host, '127.0.0.1')
@@ -17,7 +27,7 @@ test('applies defaults when only the required values are present', () => {
 
 test('every value can be overridden', () => {
   const cfg = loadConfig({
-    DATABASE_URL: VALID_URL,
+    ...REQUIRED,
     LOOM_HOST: '0.0.0.0',
     LOOM_PORT: '9999',
     LOOM_LOG_LEVEL: 'debug',
@@ -37,11 +47,14 @@ test('a missing DATABASE_URL is an error that names the variable', () => {
 })
 
 test('DATABASE_URL must be a URL', () => {
-  assert.throws(() => loadConfig({ DATABASE_URL: 'not-a-url' }), /DATABASE_URL/)
+  assert.throws(() => loadConfig({ ...REQUIRED, DATABASE_URL: 'not-a-url' }), /DATABASE_URL/)
 })
 
 test('DATABASE_URL must use the mysql:// scheme', () => {
-  assert.throws(() => loadConfig({ DATABASE_URL: 'postgres://u:p@127.0.0.1:5432/loom' }), /mysql/)
+  assert.throws(
+    () => loadConfig({ ...REQUIRED, DATABASE_URL: 'postgres://u:p@127.0.0.1:5432/loom' }),
+    /mysql/,
+  )
 })
 
 // docs/plan.md §2.8: the connection string carries a password, and a startup

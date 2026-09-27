@@ -5,7 +5,11 @@ import express, { type Express } from 'express'
 import { pino, type Logger } from 'pino'
 import { createApp } from '../../../src/api/app.ts'
 import { errorHandler, notFound } from '../../../src/api/errors.ts'
+import type { GoogleAuth } from '../../../src/auth/google.ts'
+import type { Config } from '../../../src/config/config.ts'
+import type { Drive } from '../../../src/drive/drive.ts'
 import type { Pinger } from '../../../src/store/store.ts'
+import type { Users } from '../../../src/store/users.ts'
 
 type LogLine = Record<string, unknown>
 
@@ -44,6 +48,28 @@ async function withServer(app: Express, fn: (base: string) => Promise<void>): Pr
 
 const OK: Pinger = { ping: () => Promise.resolve() }
 
+// Phase 1 gave createApp auth collaborators. These tests are about /healthz and must keep
+// needing no database and no Google, so the collaborators are inert stubs: any call into one
+// is a test reaching somewhere it should not.
+const unreached = (): never => {
+  throw new Error('a /healthz test called an auth collaborator')
+}
+const STUB_CFG = {
+  sessionSecret: 'test-session-secret-value',
+  webOrigin: 'http://127.0.0.1:5173',
+  cookieSecure: false,
+} as unknown as Config
+const STUB_USERS = {
+  upsert: unreached,
+  get: unreached,
+  refreshTokenOf: unreached,
+  setAppFolderId: unreached,
+} as unknown as Users
+const STUB_GOOGLE = { exchangeCode: unreached, refresh: unreached } as unknown as GoogleAuth
+const STUB_DRIVE = { ensureAppFolder: unreached } as unknown as Drive
+
+const authDeps = { cfg: STUB_CFG, users: STUB_USERS, googleAuth: STUB_GOOGLE, drive: STUB_DRIVE }
+
 // The message deliberately carries a host and credentials: a health check that
 // echoed its cause would leak exactly this, and only an assertion against real
 // secret-shaped text can catch it.
@@ -53,7 +79,7 @@ const HANGING: Pinger = { ping: () => new Promise<void>(() => {}) }
 
 test('healthy database answers 200 with ok checks', async () => {
   const { logger } = captureLogger()
-  const app = createApp({ logger, db: OK, healthTimeoutMs: 1_000 })
+  const app = createApp({ logger, db: OK, healthTimeoutMs: 1_000, ...authDeps })
 
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/healthz`)
@@ -65,7 +91,7 @@ test('healthy database answers 200 with ok checks', async () => {
 
 test('a failing ping answers 503 and never returns the cause', async () => {
   const { logger, lines } = captureLogger()
-  const app = createApp({ logger, db: FAILING, healthTimeoutMs: 1_000 })
+  const app = createApp({ logger, db: FAILING, healthTimeoutMs: 1_000, ...authDeps })
 
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/healthz`)
@@ -90,7 +116,7 @@ test('a failing ping answers 503 and never returns the cause', async () => {
 
 test('a hanging ping answers 503 without waiting for it', async () => {
   const { logger } = captureLogger()
-  const app = createApp({ logger, db: HANGING, healthTimeoutMs: 50 })
+  const app = createApp({ logger, db: HANGING, healthTimeoutMs: 50, ...authDeps })
 
   await withServer(app, async (base) => {
     const started = Date.now()
@@ -108,7 +134,7 @@ test('a hanging ping answers 503 without waiting for it', async () => {
 
 test('an unknown path answers 404 in the error envelope', async () => {
   const { logger } = captureLogger()
-  const app = createApp({ logger, db: OK, healthTimeoutMs: 1_000 })
+  const app = createApp({ logger, db: OK, healthTimeoutMs: 1_000, ...authDeps })
 
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/nope`)
@@ -165,7 +191,7 @@ test('an async rejection reaches the error middleware without a wrapper', async 
 // direction a privacy leak travels.
 test('request logging carries no fields beyond method, path, status and duration', async () => {
   const { logger, lines } = captureLogger()
-  const app = createApp({ logger, db: OK, healthTimeoutMs: 1_000 })
+  const app = createApp({ logger, db: OK, healthTimeoutMs: 1_000, ...authDeps })
 
   await withServer(app, async (base) => {
     await fetch(`${base}/healthz`)

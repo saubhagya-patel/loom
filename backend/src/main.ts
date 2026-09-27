@@ -1,8 +1,11 @@
 import './bigint-json.ts'
 import { createApp } from './api/app.ts'
+import { createGoogleAuth } from './auth/google.ts'
 import { loadConfig } from './config/config.ts'
+import { createDrive } from './drive/drive.ts'
 import { createLogger } from './logger.ts'
 import { createStore } from './store/store.ts'
+import { createUsers } from './store/users.ts'
 import { withTimeout } from './timeout.ts'
 
 const STARTUP_TIMEOUT_MS = 10_000
@@ -18,7 +21,15 @@ async function main(): Promise<void> {
   await store.verifySchema()
   logger.info('database connected')
 
-  const app = createApp({ logger, db: store, healthTimeoutMs: HEALTH_TIMEOUT_MS })
+  const app = createApp({
+    logger,
+    db: store,
+    healthTimeoutMs: HEALTH_TIMEOUT_MS,
+    cfg,
+    users: createUsers(store.prisma, cfg.tokenKey),
+    googleAuth: createGoogleAuth(cfg, logger),
+    drive: createDrive(),
+  })
   const server = app.listen(cfg.port, cfg.host, () => {
     logger.info({ host: cfg.host, port: cfg.port }, 'listening')
   })
