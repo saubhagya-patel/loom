@@ -6,8 +6,13 @@ const REQUEST_PX = 480
 
 /**
  * One frame of the contact sheet: a hairline cell, a white matte, and the photograph inset
- * within it — the way a print sits inside a window mount. The verified pin and the format
- * badge are engraved into opposite corners.
+ * within it — the way a print sits inside a window mount.
+ *
+ * There is deliberately no verified tick here. The gallery *is* a listing of Drive, so every
+ * frame in it would carry the same mark, which makes it decoration rather than information —
+ * and emerald in this system means verification and nothing else. The claim is made once per
+ * day-group in the volume header, where it is readable. The tick that does carry information
+ * is the one in the upload queue, where `verified` gates TRD §9's deletion guardrail.
  */
 export const Tile = memo(function Tile({ file }: { file: DriveFile }) {
   const href = file.webViewLink ?? undefined
@@ -34,14 +39,6 @@ export const Tile = memo(function Tile({ file }: { file: DriveFile }) {
               <span className="frame-blank-name mono">{file.name}</span>
             </span>
           )}
-        </span>
-
-        {/* In Drive at all means Drive confirmed it, so every frame here is verified. */}
-        <span className="pin" title="Verified in Drive" aria-label="Verified in Drive">
-          <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden focusable="false">
-            <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M4.8 8.3l2.1 2.1 4.3-4.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
-          </svg>
         </span>
 
         <span className="kind label">{kind}</span>

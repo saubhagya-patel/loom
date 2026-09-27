@@ -19,6 +19,15 @@ your files.
 **Objective:** drag in multiple `.heic` files, convert to `.jpg` or `.png`, download one
 `.zip`.
 
+### Core technologies
+
+| | |
+|---|---|
+| Decode | **`web/src/heic/convert.ts`** — `createImageBitmap` natively, falling back to `heic-decode` (libheif via WASM). **Not `heic2any`** — see §3 |
+| Encode | `OffscreenCanvas.convertToBlob`, inside the existing worker |
+| Archive | `jszip`, building the blob in memory |
+| Download | `URL.createObjectURL` on a temporary `<a download>`, revoked after the click |
+
 ### Execution flow
 
 1. **Ingest.** User drops an array of `File` objects into the dropzone.
@@ -46,6 +55,14 @@ once will crash a tab on a low-end device — which is precisely the device thes
 
 **Objective:** a drag-and-drop pane so a Windows or Android user can *see* a `.heic` without
 installing anything or creating an account.
+
+### Core technologies
+
+| | |
+|---|---|
+| Decode | **`web/src/heic/convert.ts`**, the same module. **Not `heic2any`** — see §3 |
+| Render | a native `<img src>` fed by `URL.createObjectURL` |
+| Download | the same object URL on an `<a download>` |
 
 ### Execution flow
 
