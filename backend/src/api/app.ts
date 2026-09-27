@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import cookieParser from 'cookie-parser'
 import express, { type Express, type RequestHandler } from 'express'
 import helmet from 'helmet'
@@ -67,6 +69,39 @@ function requireOrigin(cfg: Config, logger: Logger): RequestHandler {
   }
 }
 
+/**
+ * helmet's defaults are right for an API and wrong the moment this process also serves the
+ * page. Every entry below is something the app genuinely needs, and leaving the default in
+ * place would break it with nothing but console errors to explain why.
+ */
+function security(): RequestHandler {
+  return helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        // accounts.google.com serves the Identity Services client; wasm-unsafe-eval is what
+        // lets libheif's WebAssembly compile at all.
+        scriptSrc: ["'self'", "'wasm-unsafe-eval'", 'https://accounts.google.com', 'https://apis.google.com'],
+        // Inline styles: React `style={{ width }}` on the progress rails, and the font stylesheet.
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        // blob: is the decoded image in the viewer; googleusercontent serves Drive thumbnails.
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.googleusercontent.com'],
+        // Drive listing, resumable uploads, and the token exchange the browser kicks off.
+        connectSrc: ["'self'", 'https://www.googleapis.com', 'https://accounts.google.com'],
+        workerSrc: ["'self'", 'blob:'],
+        frameSrc: ['https://accounts.google.com'],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    },
+    // The sign-in popup talks back to the opener. helmet's default of `same-origin` severs
+    // that, and the failure is silent — the popup closes and nothing happens.
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  })
+}
+
 export type AppDeps = {
   logger: Logger
   db: Pinger
@@ -88,7 +123,7 @@ export function createApp({
 }: AppDeps): Express {
   const app = express()
   app.disable('x-powered-by')
-  app.use(helmet())
+  app.use(security())
   app.use(cookieParser(cfg.sessionSecret))
   app.use(requestLogger(logger))
   // Ahead of the body parser on purpose: a POST from a foreign origin is refused before we
@@ -100,6 +135,25 @@ export function createApp({
   app.use('/api/auth', authRoutes({ cfg, users, googleAuth, drive }))
   app.use('/api/user', userRoutes(users))
   app.use('/api/media', mediaRoutes(users))
+
+  // Single-service deployment: this process serves the built SPA as well as the API, which
+  // keeps the frontend and the API same-origin. That is not a convenience — the session
+  // cookie is SameSite=Lax and the Origin check compares against one origin, so splitting
+  // them across hosts would break authentication rather than merely complicate it.
+  const staticDir = cfg.staticDir
+  if (staticDir !== null && existsSync(staticDir)) {
+    // Hashed asset filenames can be cached hard; index.html must not be, or a deploy leaves
+    // browsers holding a stale shell that references assets which no longer exist.
+    app.use(express.static(staticDir, { index: false, maxAge: '1y', etag: true }))
+
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return next()
+      if (req.path.startsWith('/api/') || req.path === '/healthz') return next()
+      // Client-routed paths like /tools/heic-viewer have no file behind them; without this
+      // they 404 on a refresh or a shared link.
+      res.sendFile(join(staticDir, 'index.html'))
+    })
+  }
 
   app.use(notFound())
   app.use(errorHandler(logger))

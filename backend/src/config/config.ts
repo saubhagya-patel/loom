@@ -12,6 +12,8 @@ export type Config = {
   sessionSecret: string
   webOrigin: string
   cookieSecure: boolean
+  /** Where the built SPA lives, when this process also serves it. */
+  staticDir: string | null
 }
 
 // Keys are the environment variable names so Zod's issue paths name the
@@ -53,9 +55,19 @@ const schema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+
+  // Set in a single-service deployment, where this process serves the built SPA as well as
+  // the API. Left unset in development, where vite serves it and proxies /api here.
+  LOOM_STATIC_DIR: z.string().optional(),
 })
 
-export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
+export function loadConfig(source: Record<string, string | undefined> = process.env): Config {
+  // Render (and most hosts) assign the port through PORT. LOOM_PORT still wins where it is
+  // set, so nothing about local development changes.
+  const env = source.LOOM_PORT === undefined && source.PORT !== undefined
+    ? { ...source, LOOM_PORT: source.PORT }
+    : source
+
   const parsed = schema.safeParse(env)
   if (!parsed.success) {
     const problems = parsed.error.issues
@@ -77,5 +89,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     sessionSecret: e.LOOM_SESSION_SECRET,
     webOrigin: e.LOOM_WEB_ORIGIN,
     cookieSecure: e.LOOM_COOKIE_SECURE,
+    staticDir: e.LOOM_STATIC_DIR ?? null,
   }
 }

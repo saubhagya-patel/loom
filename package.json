@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=25"
+    "node": ">=24"
   },
   "workspaces": [
     "backend",
@@ -11,6 +11,7 @@
   ],
   "scripts": {
     "dev": "npm run -w @loom/backend dev",
+    "start": "npm run -w @loom/backend start",
     "dev:web": "npm run -w web dev",
     "typecheck": "npm run -w @loom/backend typecheck",
     "lint": "eslint .",
