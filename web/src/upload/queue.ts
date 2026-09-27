@@ -25,6 +25,19 @@ export type QueueItem = {
   verified: boolean
 }
 
+// What the header renders. Deliberately booleans and counts, never the item map: a component
+// that subscribed to the map would re-render on every chunk of every file
+// (vercel-react-best-practices: rerender-derived-state).
+export type QueueSummary = {
+  total: number
+  active: number
+  done: number
+  failed: number
+  needsFile: number
+  // TRD §9: the deletion affordance is gated on this, never on 'DONE' alone.
+  allVerified: boolean
+}
+
 export type Queue = {
   hydrate: () => Promise<void>
   add: (files: File[]) => Promise<void>
@@ -34,7 +47,9 @@ export type Queue = {
   provideFile: (id: string, file: File) => Promise<boolean>
   subscribe: (id: string, fn: () => void) => () => void
   subscribeIds: (fn: () => void) => () => void
+  subscribeSummary: (fn: () => void) => () => void
   snapshot: (id: string) => QueueItem | undefined
+  summary: () => QueueSummary
   ids: () => string[]
 }
 
@@ -79,8 +94,17 @@ export function createQueue(deps: {
   const lastEmit = new Map<string, number>()
 
   // Cached because useSyncExternalStore compares snapshots by identity: returning a fresh
-  // array from ids() on every call would re-render the list forever.
+  // array or object from these on every call would re-render forever.
   let idsSnapshot: string[] = []
+  let summarySnapshot: QueueSummary = {
+    total: 0,
+    active: 0,
+    done: 0,
+    failed: 0,
+    needsFile: 0,
+    allVerified: false,
+  }
+  const summaryListeners = new Set<() => void>()
 
   const emit = (id: string): void => {
     for (const fn of perId.get(id) ?? []) fn()
@@ -88,6 +112,41 @@ export function createQueue(deps: {
   const emitIds = (): void => {
     idsSnapshot = [...entries.keys()]
     for (const fn of idsListeners) fn()
+    recomputeSummary()
+  }
+
+  // Recomputed only when a state changes, never on a byte count — so progress, which is by far
+  // the most frequent update, never touches the header.
+  const ACTIVE: ReadonlySet<UploadState> = new Set<UploadState>([
+    'QUEUED',
+    'INITIATING',
+    'UPLOADING',
+    'VERIFYING',
+  ])
+  function recomputeSummary(): void {
+    let active = 0
+    let done = 0
+    let failed = 0
+    let needsFile = 0
+    let verified = 0
+    for (const entry of entries.values()) {
+      const { state } = entry.item
+      if (ACTIVE.has(state)) active++
+      else if (state === 'DONE') done++
+      else if (state === 'FAILED') failed++
+      else if (state === 'NEEDS_FILE') needsFile++
+      if (entry.item.verified) verified++
+    }
+    const total = entries.size
+    summarySnapshot = {
+      total,
+      active,
+      done,
+      failed,
+      needsFile,
+      allVerified: total > 0 && verified === total,
+    }
+    for (const fn of summaryListeners) fn()
   }
 
   // useSyncExternalStore compares snapshots by identity, so every change replaces `item` with
@@ -104,8 +163,11 @@ export function createQueue(deps: {
       const now = Date.now()
       if (now - (lastEmit.get(id) ?? 0) < PROGRESS_THROTTLE_MS) return
       lastEmit.set(id, now)
+      emit(id)
+      return
     }
     emit(id)
+    if (patch.state !== undefined || patch.verified !== undefined) recomputeSummary()
   }
 
   const persist = async (entry: Entry): Promise<void> => {
@@ -371,7 +433,13 @@ export function createQueue(deps: {
       return () => idsListeners.delete(fn)
     },
 
+    subscribeSummary: (fn) => {
+      summaryListeners.add(fn)
+      return () => summaryListeners.delete(fn)
+    },
+
     snapshot: (id) => entries.get(id)?.item,
+    summary: () => summarySnapshot,
     ids: () => idsSnapshot,
   }
 }

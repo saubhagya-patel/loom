@@ -15,3 +15,25 @@ export function getAccessToken(): string | null {
 export function setAccessToken(token: string | null): void {
   accessToken = token
 }
+
+let inFlight: Promise<boolean> | null = null
+
+// Collapsed into one in-flight request on purpose. A long upload can take a 401 on a chunk at
+// the same moment the proactive 55-minute timer fires; two refreshes would race, and the loser
+// would overwrite a good token with a staler one mid-upload.
+export function refreshAccessToken(): Promise<boolean> {
+  inFlight ??= (async () => {
+    try {
+      const res = await fetch('/api/auth/refresh', { method: 'POST' })
+      if (!res.ok) return false
+      const body = (await res.json()) as { accessToken: string }
+      setAccessToken(body.accessToken)
+      return true
+    } catch {
+      return false
+    } finally {
+      inFlight = null
+    }
+  })()
+  return inFlight
+}

@@ -1,5 +1,6 @@
 import './App.css'
 import { useSession } from './auth/useSession.ts'
+import { QueueScreen } from './ui/QueueScreen.tsx'
 
 // TRD §9's sign-in screen and the shell behind it. Phase 2 fills that shell with the upload
 // queue; for now it proves the handshake — a folder id here means Drive has the folder.
@@ -43,17 +44,18 @@ export default function App() {
   }
 
   return (
-    <main className="shell">
-      <h1>loom</h1>
-      <p>
-        Signed in as <strong>{session.account.email}</strong>
-      </p>
-      <p className="muted">
-        {session.account.appFolderId
-          ? 'Your “loom” folder is ready in Drive.'
-          : 'No folder yet — sign in again to create one.'}
-      </p>
-      <button onClick={() => void session.signOut()}>Sign out</button>
+    <main className="shell shell--wide">
+      <header className="top">
+        <h1>loom</h1>
+        <span className="muted">{session.account.email}</span>
+        <button onClick={() => void session.signOut()}>Sign out</button>
+      </header>
+
+      {session.account.appFolderId ? (
+        <QueueScreen folderId={session.account.appFolderId} />
+      ) : (
+        <p className="error">No Drive folder yet — sign out and back in to create one.</p>
+      )}
     </main>
   )
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { requestAuthCode } from './gis.ts'
-import { setAccessToken } from './token.ts'
+import { refreshAccessToken, setAccessToken } from './token.ts'
 
 export type Account = { email: string; appFolderId: string | null }
 
@@ -14,14 +14,6 @@ export type SessionState =
 // (docs/plan.md §2.4). TRD §8 fixes the response bodies and neither carries an expiry, so
 // this is a constant rather than something read from the server.
 const REFRESH_AFTER_MS = 55 * 60 * 1000
-
-async function refreshAccessToken(): Promise<boolean> {
-  const res = await fetch('/api/auth/refresh', { method: 'POST' })
-  if (!res.ok) return false
-  const body = (await res.json()) as { accessToken: string }
-  setAccessToken(body.accessToken)
-  return true
-}
 
 export function useSession(): SessionState & {
   signIn: () => Promise<void>

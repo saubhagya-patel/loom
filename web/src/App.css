@@ -51,3 +51,58 @@ code {
   padding: 0.1em 0.3em;
   border-radius: 0.25rem;
 }
+
+.shell--wide { max-width: 46rem; }
+
+.top {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  width: 100%;
+}
+.top h1 { margin-right: auto; }
+
+.queue { width: 100%; display: flex; flex-direction: column; gap: 1rem; }
+.queue-head { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+
+button.primary { background: #111827; color: #fff; border-color: #111827; }
+button.primary:hover { background: #1f2937; }
+
+.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+
+/* Off-screen rows cost nothing to lay out or paint, which is what makes a queue of hundreds
+   of files cheap (vercel-react-best-practices: rendering-content-visibility). */
+.row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row-head { display: flex; align-items: baseline; gap: 0.75rem; }
+.row-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: auto;
+}
+.row-state { font-size: 0.8rem; color: #6b7280; }
+.row-state--done { color: #067647; }
+.row-state--failed { color: #b42318; }
+.row-state--needs_file { color: #b54708; }
+
+.bar { height: 0.35rem; background: #f3f4f6; border-radius: 999px; overflow: hidden; }
+.bar-fill { height: 100%; background: #2563eb; transition: width 0.2s linear; }
+.bar-fill--done { background: #067647; }
+
+.row-foot { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.row-foot .muted { margin-right: auto; }
+.row-foot button { padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+
+.reselect { display: flex; flex-direction: column; gap: 0.4rem; }
+.safe { margin: 0; font-size: 0.85rem; color: #067647; }
