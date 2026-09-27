@@ -29,6 +29,7 @@ export function QueueScreen({ folderId }: { folderId: string }) {
   const summary = useQueueSummary(queue)
   const [pending, setPending] = useState<Pending | null>(null)
   const [unreadable, setUnreadable] = useState(0)
+  const [substituted, setSubstituted] = useState(0)
 
   async function receive(files: File[]): Promise<void> {
     const checks = await Promise.all(files.map(checkHeic))
@@ -37,14 +38,22 @@ export function QueueScreen({ folderId }: { folderId: string }) {
     // this is the first moment we can know (agent-cache/knowledge.md).
     setUnreadable(checks.filter((c) => c.unreadable).length)
 
+    const substitutedCount = checks.filter((c) => c.substituted).length
     const heicCount = checks.filter((c) => c.isHeic).length
+
     if (heicCount === 0) {
       // Nothing to decide. 'raw' here means "upload exactly what was picked", which is what
       // every non-HEIC file wants anyway.
+      //
+      // Say so when files *claimed* to be HEIC and were not. Otherwise picking a .heic and
+      // getting no modal reads as the feature being broken — and on iOS, where Safari can
+      // substitute a whole batch at selection time, that silence would be the normal case.
+      setSubstituted(substitutedCount)
       void queue.add(files, 'raw')
       return
     }
-    setPending({ files, heicCount, substitutedCount: checks.filter((c) => c.substituted).length })
+    setSubstituted(0)
+    setPending({ files, heicCount, substitutedCount })
   }
 
   function choose(strategy: Strategy): void {
@@ -97,6 +106,14 @@ export function QueueScreen({ folderId }: { folderId: string }) {
           </span>
         ) : null}
       </div>
+
+      {substituted > 0 ? (
+        <p className="fine">
+          {substituted} file{substituted === 1 ? '' : 's'} named .heic turned out to already be
+          JPEG, so {substituted === 1 ? 'it needs' : 'they need'} no conversion —{' '}
+          {substituted === 1 ? 'it was' : 'they were'} uploaded as-is.
+        </p>
+      ) : null}
 
       {unreadable > 0 ? (
         <p className="error">
