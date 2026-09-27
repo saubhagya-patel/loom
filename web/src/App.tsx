@@ -1,63 +1,59 @@
-import { useEffect, useState } from 'react'
 import './App.css'
+import { useSession } from './auth/useSession.ts'
 
-// Phase 0's only view, and it is throwaway: Phase 1 replaces it with the landing
-// page. It exists because it is the one thing exercising both halves of the
-// stack — if this renders a status, the Vite proxy reaches the Node server.
-type Health = {
-  status: 'ok' | 'degraded'
-  checks: { database: 'ok' | 'unavailable' }
-}
-
-type Probe = { state: 'loading' } | { state: 'ready'; health: Health } | { state: 'unreachable' }
-
-const POLL_MS = 3_000
-
+// TRD §9's sign-in screen and the shell behind it. Phase 2 fills that shell with the upload
+// queue; for now it proves the handshake — a folder id here means Drive has the folder.
 export default function App() {
-  const [probe, setProbe] = useState<Probe>({ state: 'loading' })
+  const session = useSession()
 
-  useEffect(() => {
-    const controller = new AbortController()
+  if (session.status === 'loading') {
+    return (
+      <main className="shell">
+        <p className="muted">checking your session…</p>
+      </main>
+    )
+  }
 
-    const poll = async (): Promise<void> => {
-      try {
-        const res = await fetch('/healthz', { signal: controller.signal })
-        // 503 is a real answer from a reachable server, not a failure to reach it.
-        setProbe({ state: 'ready', health: (await res.json()) as Health })
-      } catch {
-        if (!controller.signal.aborted) setProbe({ state: 'unreachable' })
-      }
-    }
+  if (session.status === 'signed-out') {
+    return (
+      <main className="shell">
+        <h1>loom</h1>
+        <p className="muted">
+          Back up your photos straight to your own Google Drive. They go from this browser to
+          your Drive without passing through our servers.
+        </p>
 
-    void poll()
-    const timer = setInterval(() => void poll(), POLL_MS)
-    return () => {
-      controller.abort()
-      clearInterval(timer)
-    }
-  }, [])
+        {__GOOGLE_CLIENT_ID__ ? (
+          <button onClick={() => void session.signIn()}>Sign in with Google</button>
+        ) : (
+          <p className="error">
+            No OAuth client id configured. Set <code>LOOM_GOOGLE_CLIENT_ID</code> in{' '}
+            <code>backend/.env</code> and restart the dev server.
+          </p>
+        )}
+
+        {session.error ? <p className="error">{session.error}</p> : null}
+
+        <p className="fine">
+          loom asks only for <code>drive.file</code> — it can see the files it creates, and
+          nothing else in your Drive.
+        </p>
+      </main>
+    )
+  }
 
   return (
-    <main className="probe">
+    <main className="shell">
       <h1>loom</h1>
-      <p className="tagline">Phase 0 scaffold — backend reachability check</p>
-
-      {probe.state === 'loading' && <p className="pending">checking…</p>}
-
-      {probe.state === 'unreachable' && (
-        <p className="bad">
-          server unreachable — is <code>npm run dev</code> running?
-        </p>
-      )}
-
-      {probe.state === 'ready' && (
-        <dl className={probe.health.status === 'ok' ? 'good' : 'bad'}>
-          <dt>server</dt>
-          <dd>{probe.health.status}</dd>
-          <dt>database</dt>
-          <dd>{probe.health.checks.database}</dd>
-        </dl>
-      )}
+      <p>
+        Signed in as <strong>{session.account.email}</strong>
+      </p>
+      <p className="muted">
+        {session.account.appFolderId
+          ? 'Your “loom” folder is ready in Drive.'
+          : 'No folder yet — sign in again to create one.'}
+      </p>
+      <button onClick={session.signOut}>Sign out</button>
     </main>
   )
 }

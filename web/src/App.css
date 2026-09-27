@@ -1,59 +1,53 @@
-.probe {
-  max-width: 32rem;
-  margin: 4rem auto;
-  padding: 0 1rem;
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+.shell {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 4rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
 }
 
-.probe h1 {
+h1 {
   margin: 0;
   font-size: 2rem;
   letter-spacing: -0.02em;
 }
 
-.tagline {
-  margin: 0.25rem 0 2rem;
-  opacity: 0.6;
-  font-size: 0.9rem;
-}
-
-.pending {
-  opacity: 0.6;
-}
-
-dl {
-  display: grid;
-  grid-template-columns: 6rem 1fr;
-  gap: 0.5rem 1rem;
+.muted {
   margin: 0;
-  padding: 1rem 1.25rem;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.fine {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.error {
+  margin: 0;
+  color: #b42318;
+  line-height: 1.6;
+}
+
+button {
+  font: inherit;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid #d0d5dd;
   border-radius: 0.5rem;
-  border: 1px solid currentColor;
+  background: #fff;
+  cursor: pointer;
 }
 
-dt {
-  opacity: 0.6;
+button:hover {
+  background: #f9fafb;
 }
 
-dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.good {
-  color: #12694a;
-}
-
-.bad {
-  color: #a3231b;
-}
-
-@media (prefers-color-scheme: dark) {
-  .good {
-    color: #5fd6a4;
-  }
-  .bad {
-    color: #ff8a80;
-  }
+code {
+  font-size: 0.9em;
+  background: #f3f4f6;
+  padding: 0.1em 0.3em;
+  border-radius: 0.25rem;
 }
