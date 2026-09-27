@@ -185,41 +185,61 @@ outside React, because they are not UI state and must not be serialised into one
 
 ## 6. The design language, as it stands
 
-Chosen for a reason worth keeping or arguing with rather than inheriting silently.
+Taken from the design system in `design/` (gitignored), a Stitch export named
+*minimal cloud vault*. Two systems ship in that folder; the screens use the **warm ceramic**
+palette with the loom typography, which is what the inline styles actually render — the
+Tailwind config in the exported HTML is overridden and is not the source of truth.
 
-**The reference is a photographic contact sheet** — the artefact whose entire purpose is
-checking what you have. That is Loom's job. So the screen is dense and utilitarian, not airy
-and carded, and the grid is evidence for a sentence rather than the main event.
+The reference is a photographic contact sheet and a precision instrument: hairline framing,
+mechanical labels, no pillowy cards or diffuse shadows. Depth comes from tonal stacking.
 
 ```
---paper      #EDEEF0   cool fibre-paper grey. NOT cream: warm grounds cast photographs
---paper-lift #F6F7F8   raised surfaces
---ink        #16181D   near-black, blue cast
---graphite   #5A6070   secondary text
---frame      #C9CDD4   hairline borders — the only structural device
---verified   #1F6F4A   the single accent; means "safely in Drive" and nothing else
---alert      #9B2C2C   failures only
+--canvas     #FBF7F4   unglazed ceramic; the app ground
+--raised     #FAF6F2   masthead
+--surface    #FFFFFF   lifted panels, the matte inside a frame
+--recessed   #F3ECE5   inset wells, segmented controls, progress tracks
+--bone       #FAF3DD   warm tint, used sparingly
+--ink        #2B303A   primary text
+--muted      #5E6472   metadata
+--faint      #8C93A1   tertiary
+--hairline   #EED2CC   rose-ceramic; does nearly all the framing work
+--clay       #A1683A   terracotta; ONLY the control that commits something
+--verified   #245F50   means "confirmed in your Drive" and nothing else
+--alert      #A52A2A
 ```
 
-**Type:** Archivo, 400/500/700, one family. Tabular figures on every count — an alignment
-requirement, which is why it is solved with figures rather than a second typeface.
+**Type: two families with distinct jobs.** *Hanken Grotesk* (400/500/600) carries language —
+headlines at 40/46 and -0.03em tracking, body at 14. *Space Mono* carries anything mechanical:
+counts, sizes, states, paths, chunk positions. Uppercase mono at 10px/0.06em is the engraved
+label, used the way a camera body is marked.
 
-**Four rules currently in force:**
+**Radii are small and deliberate:** 4px on controls, cells and badges; 8px on sheets and
+modals. Nothing is pill-shaped except status dots.
 
-1. Hairline frames are the only structural device. **No shadows, no border-radius, no cards.**
-2. One accent, and it is semantic. Green never decorates.
-3. Density over air.
-4. Motion only in response to an action. Nothing fades in because it loaded.
+**Four rules in force:**
 
-**Known weak points** — fair game for a new schema:
+1. Hairlines and tonal stacking do the structural work. No heavy shadows, nothing floating.
+2. Terracotta is the commit action; emerald is verification. Neither ever decorates.
+3. Language in the grotesque, mechanics in the mono. A number never sets in the sans.
+4. Motion answers an action. Nothing animates because it loaded.
 
-* The queue row is the least designed surface in the app; its controls are `0.2rem 0.55rem`
-  and too small for a phone.
-* There is no dark mode. `color-scheme: light` is declared.
-* `App.css` is 417 lines in one file with no component scoping.
-* The landing page is plainer than it probably deserves to be.
+**What was deliberately not taken from the design**, because the mock shows data Loom either
+does not have or must not display — see §7 for why the first two are not negotiable:
 
----
+* **The resumable session id** printed in a transfer row. That is a bearer credential
+  (`docs/plan.md` §2.5); even truncated it does not belong on a screen someone might photograph.
+* **EXIF and camera model** on each row. Loom never reads EXIF, and §2.8 forbids holding it.
+* **Invented telemetry** — archive protocol versions, a SQLite cache, LIBRAW, allocated
+  terabytes, batch and session numbers, `Matched sha256`. None of it is true here, and printing
+  fictional provenance in a product whose whole proposition is trustworthiness is the one lie
+  that would matter.
+* **RAW/DNG badges** → replaced with badges derived from the MIME type Drive reports.
+* **The avatar photo** → Loom requests `openid email`, not `profile`, so no picture exists.
+* **"Manual Ingest" / "Target Directory"** → "Add photos". Loom has no directory targeting, and
+  the mechanical register belongs on labels and counts, not on the primary action.
+
+**Known weak points, fair game for a future pass:** no dark mode; `App.css` is one file with no
+component scoping; the landing page is the least developed screen.
 
 ## 7. What a redesign must not break
 

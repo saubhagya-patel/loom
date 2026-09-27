@@ -25,3 +25,4 @@ coverage/
 
 # Prisma client is generated from db/schema.sql; regenerate with prisma:generate
 backend/generated/
+design/

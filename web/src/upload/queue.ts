@@ -23,6 +23,11 @@ export type QueueItem = {
   size: number
   state: UploadState
   uploadedBytes: number
+  /**
+   * Measured here rather than in the row. It is a property of the transfer, and computing it
+   * during render would mean reading a clock and a ref while rendering — both impure.
+   */
+  bytesPerSecond: number
   error?: string
   // TRD §9's deletion guardrail reads this and only this. It is set in exactly one place:
   // after Drive's own reported size matches the local one.
@@ -100,6 +105,7 @@ export function createQueue(deps: {
   let db: QueueDb | null = null
   let pumping = false
   const lastEmit = new Map<string, number>()
+  const lastProgress = new Map<string, { at: number; bytes: number }>()
 
   // Cached because useSyncExternalStore compares snapshots by identity: returning a fresh
   // array or object from these on every call would re-render forever.
@@ -387,7 +393,16 @@ export function createQueue(deps: {
           record.confirmedBytes = result.confirmedBytes
           attempts = 0
           await persist(entry)
-          update(id, { uploadedBytes: record.confirmedBytes }, true)
+
+          const now = Date.now()
+          const prev = lastProgress.get(id)
+          const moved = prev && record.confirmedBytes > prev.bytes && now > prev.at
+          const bytesPerSecond = moved
+            ? ((record.confirmedBytes - prev.bytes) / (now - prev.at)) * 1000
+            : entry.item.bytesPerSecond
+          lastProgress.set(id, { at: now, bytes: record.confirmedBytes })
+
+          update(id, { uploadedBytes: record.confirmedBytes, bytesPerSecond }, true)
           continue
         }
 
@@ -487,6 +502,7 @@ export function createQueue(deps: {
             size: record.size,
             state: 'NEEDS_FILE',
             uploadedBytes: record.confirmedBytes,
+            bytesPerSecond: 0,
             verified: false,
           },
           file: null,
@@ -514,7 +530,15 @@ export function createQueue(deps: {
           continue
         }
         entries.set(id, {
-          item: { id, name: file.name, size: file.size, state: 'QUEUED', uploadedBytes: 0, verified: false },
+          item: {
+            id,
+            name: file.name,
+            size: file.size,
+            state: 'QUEUED',
+            uploadedBytes: 0,
+            bytesPerSecond: 0,
+            verified: false,
+          },
           file,
           source: null,
           strategy,

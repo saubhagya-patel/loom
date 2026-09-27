@@ -1,19 +1,37 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { DriveFile } from '../drive/list.ts'
 import { useGallery } from '../drive/useGallery.ts'
+import { bytes, dayKey, dayLabel } from './format.ts'
 import { Tile } from './Tile.tsx'
 
-function formatBytes(total: number): string {
-  if (total >= 1024 ** 3) return `${(total / 1024 ** 3).toFixed(1)} GB`
-  if (total >= 1024 ** 2) return `${Math.round(total / 1024 ** 2)} MB`
-  return `${Math.max(1, Math.round(total / 1024))} KB`
+type Density = 'comfortable' | 'dense'
+
+function groupByDay(files: DriveFile[]): { key: string; label: string; files: DriveFile[] }[] {
+  const groups = new Map<string, { key: string; label: string; files: DriveFile[] }>()
+  for (const file of files) {
+    const key = dayKey(file.createdTime)
+    const group = groups.get(key) ?? { key, label: dayLabel(file.createdTime), files: [] }
+    group.files.push(file)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+}
+
+function agoFrom(at: number | null): string {
+  if (at === null) return 'never'
+  const mins = Math.floor((Date.now() - at) / 60000)
+  if (mins < 1) return 'moments ago'
+  if (mins === 1) return '1 minute ago'
+  if (mins < 60) return `${mins} minutes ago`
+  const hours = Math.floor(mins / 60)
+  return hours === 1 ? '1 hour ago' : `${hours} hours ago`
 }
 
 export function Gallery({ folderId, onAddPhotos }: { folderId: string; onAddPhotos: () => void }) {
-  const { files, loading, error, complete, loadMore, refresh } = useGallery(folderId)
+  const { files, loading, error, complete, lastLoadedAt, loadMore, refresh } = useGallery(folderId)
+  const [density, setDensity] = useState<Density>('comfortable')
   const sentinel = useRef<HTMLDivElement>(null)
 
-  // Pages load as you reach the bottom rather than behind a button you have to find. The
-  // margin starts the next page before the grid actually runs out.
   useEffect(() => {
     const el = sentinel.current
     if (!el || complete) return
@@ -21,67 +39,121 @@ export function Gallery({ folderId, onAddPhotos }: { folderId: string; onAddPhot
       (entries) => {
         if (entries[0]?.isIntersecting) loadMore()
       },
-      { rootMargin: '400px' },
+      { rootMargin: '600px' },
     )
     observer.observe(el)
     return () => observer.disconnect()
   }, [complete, loadMore])
 
+  const groups = useMemo(() => groupByDay(files), [files])
+  const stored = files.reduce((sum, f) => sum + (f.size ?? 0), 0)
+
   if (error) {
     return (
-      <div className="empty">
-        <p className="error">{error}</p>
-        <button onClick={refresh}>Try again</button>
-      </div>
+      <section className="band">
+        <p className="notice notice--alert">{error}</p>
+        <button className="btn" onClick={refresh}>
+          Try again
+        </button>
+      </section>
     )
+  }
+
+  if (files.length === 0 && loading) {
+    return <p className="band mono muted">Reading your Drive…</p>
   }
 
   if (files.length === 0) {
-    if (loading) return <p className="hero-note">Looking in your Drive…</p>
     return (
-      <div className="empty">
-        <p>No photos here yet.</p>
-        <p className="muted">
-          Whatever you upload goes into a folder called loom in your own Google Drive. It never
-          passes through our servers.
+      <section className="band empty">
+        <span className="label muted">Repository empty</span>
+        <h1 className="headline">Nothing is in your Drive yet.</h1>
+        <p className="lede">
+          Whatever you add goes into a folder called <span className="mono">loom</span> in your own
+          Google Drive, straight from this browser.
         </p>
-        <button className="primary" onClick={onAddPhotos}>
+        <button className="btn btn--clay" onClick={onAddPhotos}>
           Add photos
         </button>
-      </div>
+      </section>
     )
   }
 
-  const bytes = files.reduce((sum, file) => sum + (file.size ?? 0), 0)
-
   return (
     <>
-      {/* The sentence is the point of this screen; the grid below is its evidence. The count
-          carries a + until every page is in, because claiming a total we have not finished
-          counting would be the one thing this screen must not do. */}
-      <h1 className="hero">
-        <span className="count tabular">
-          {files.length}
-          {complete ? '' : '+'}
-        </span>{' '}
-        {files.length === 1 ? 'photo is' : 'photos are'} safe in your Drive.
-      </h1>
-      <p className="hero-note tabular">{formatBytes(bytes)}</p>
+      {/* The hero states the thing the user came to hear; the sheet below is its evidence. */}
+      <section className="band hero">
+        <div className="hero-copy">
+          <span className="eyebrow label">
+            <span className="dot dot--verified" />
+            Drive synchronised repository
+          </span>
+          <h1 className="headline">
+            <span className="mono headline-count">
+              {files.length.toLocaleString()}
+              {complete ? '' : '+'}
+            </span>{' '}
+            {files.length === 1 ? 'photo is safely in Drive.' : 'photos are safely in Drive.'}
+          </h1>
+          <p className="hero-meta mono">
+            <span>Last read {agoFrom(lastLoadedAt)}</span>
+            <span className="slash">/</span>
+            <span>Drive / loom</span>
+            <span className="slash">/</span>
+            <span>{bytes(stored)} stored</span>
+          </p>
+        </div>
 
-      <ul className="sheet">
-        {files.map((file) => (
-          <Tile key={file.id} file={file} />
-        ))}
-      </ul>
+        <div className="hero-actions">
+          <div className="segmented segmented--sm">
+            <button aria-current={density === 'comfortable'} onClick={() => setDensity('comfortable')}>
+              Comfortable
+            </button>
+            <span className="segmented-rule" />
+            <button aria-current={density === 'dense'} onClick={() => setDensity('dense')}>
+              Dense
+            </button>
+          </div>
+          <button className="btn" onClick={refresh}>
+            Refresh from Drive
+          </button>
+          <button className="btn btn--clay" onClick={onAddPhotos}>
+            Add photos
+          </button>
+        </div>
+      </section>
+
+      {groups.map((group) => (
+        <section key={group.key} className="volume">
+          <header className="volume-head">
+            <h2 className="volume-title">{group.label}</h2>
+            <span className="volume-count mono">
+              {group.files.length} {group.files.length === 1 ? 'item' : 'items'} verified
+            </span>
+          </header>
+          <ul className={`sheet${density === 'dense' ? ' sheet--dense' : ''}`}>
+            {group.files.map((file) => (
+              <Tile key={file.id} file={file} />
+            ))}
+          </ul>
+        </section>
+      ))}
 
       <div ref={sentinel} className="sentinel" />
 
-      <p className="sheet-foot">
-        {loading
-          ? 'Loading more…'
-          : /* Said here, at the end of the sheet, rather than as a permanent banner: this is
-               where someone would notice a file they expected is missing. */
-            'Only what loom uploaded appears here. Moving a file out of the loom folder in Drive removes it from this view.'}
+      <p className="stream-end label">
+        {loading ? (
+          'Reading more from Drive…'
+        ) : (
+          <>
+            <span className="dot dot--verified" />
+            End of stream · every file above confirmed by Drive
+          </>
+        )}
+      </p>
+      <p className="stream-note mono">
+        Only files loom uploaded are visible here — moving one out of the loom folder removes it
+        from this view.
       </p>
     </>
   )

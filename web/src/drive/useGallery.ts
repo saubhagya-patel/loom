@@ -8,6 +8,8 @@ export type Gallery = {
   error: string | null
   /** No further pages to fetch. */
   complete: boolean
+  /** When the most recent read of Drive finished. Set where it happens, not from an effect. */
+  lastLoadedAt: number | null
   loadMore: () => void
   refresh: () => void
 }
@@ -19,6 +21,7 @@ export function useGallery(folderId: string): Gallery {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [complete, setComplete] = useState(false)
+  const [lastLoadedAt, setLastLoadedAt] = useState<number | null>(null)
 
   const drive = useRef(createDriveList({ getToken: getAccessToken, refreshToken: refreshAccessToken }))
   const nextToken = useRef<string | null>(null)
@@ -38,6 +41,7 @@ export function useGallery(folderId: string): Gallery {
         setComplete(page.nextPageToken === null)
         setFiles((prev) => (pageToken ? [...prev, ...page.files] : page.files))
         setError(null)
+        setLastLoadedAt(Date.now())
       } catch (err) {
         if (gen === generation.current) {
           setError(err instanceof Error ? err.message : 'could not load your photos')
@@ -77,5 +81,5 @@ export function useGallery(folderId: string): Gallery {
     void load(undefined, generation.current)
   }, [load])
 
-  return { files, loading, error, complete, loadMore, refresh }
+  return { files, loading, error, complete, lastLoadedAt, loadMore, refresh }
 }

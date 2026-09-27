@@ -1,5 +1,6 @@
 import './App.css'
 import { useSession } from './auth/useSession.ts'
+import { Emblem } from './ui/Emblem.tsx'
 import { Shell } from './ui/Shell.tsx'
 
 export default function App() {
@@ -7,8 +8,8 @@ export default function App() {
 
   if (session.status === 'loading') {
     return (
-      <main className="shell">
-        <p className="hero-note">Checking your session…</p>
+      <main className="page">
+        <p className="band mono muted">Checking your session…</p>
       </main>
     )
   }
@@ -17,33 +18,48 @@ export default function App() {
     return <Shell account={session.account} onSignOut={() => void session.signOut()} />
   }
 
-  // TRD §9.1: the value proposition, the privacy assurances, and one way in. The assurances
-  // are the reason anyone would hand a backup tool their Drive, so they are stated as plain
-  // facts about what the app does rather than as badges.
+  // TRD §9.1. The assurances are the reason anyone would hand a backup tool their Drive, so
+  // they are stated as plain facts about behaviour rather than dressed as badges.
   return (
-    <main className="shell">
+    <main className="page">
       <div className="landing">
-        <h1 className="wordmark">loom</h1>
-        <p className="pitch">Move photos off a full phone and into Drive you already own.</p>
+        <div className="brand brand--lg">
+          <Emblem size={40} />
+          <span className="wordmark wordmark--lg">LOOM</span>
+          <span className="chip label">Drive direct</span>
+        </div>
+
+        <h1 className="headline">Move photos off a full phone, into Drive you already own.</h1>
 
         <ul className="assurances">
-          <li>Photos go straight from this browser to your Drive.</li>
-          <li>loom can only see the files it put there — nothing else in your Drive.</li>
-          <li>Nothing about your photos is stored or logged on our side.</li>
+          <li>
+            <span className="dot dot--verified" />
+            Photos travel from this browser straight to your Drive.
+          </li>
+          <li>
+            <span className="dot dot--verified" />
+            loom sees only the files it put there — nothing else in your Drive.
+          </li>
+          <li>
+            <span className="dot dot--verified" />
+            Nothing about your photos is stored or logged on our side.
+          </li>
         </ul>
 
         {__GOOGLE_CLIENT_ID__ ? (
-          <button className="primary" onClick={() => void session.signIn()}>
+          <button className="btn btn--clay btn--lg" onClick={() => void session.signIn()}>
             Continue with Google
           </button>
         ) : (
-          <p className="error">
-            No OAuth client id configured. Set <code>LOOM_GOOGLE_CLIENT_ID</code> in{' '}
-            <code>backend/.env</code> and restart the dev server.
+          <p className="notice notice--alert">
+            No OAuth client id configured. Set <span className="mono">LOOM_GOOGLE_CLIENT_ID</span> in{' '}
+            <span className="mono">backend/.env</span> and restart the dev server.
           </p>
         )}
 
-        {session.error ? <p className="error">{session.error}</p> : null}
+        {session.error ? <p className="notice notice--alert">{session.error}</p> : null}
+
+        <p className="stream-note mono">Scope requested: drive.file · openid · email</p>
       </div>
     </main>
   )

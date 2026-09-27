@@ -1,33 +1,51 @@
-/* Loom's visual language.
+/* Loom's visual language — the "minimal cloud vault" system from design/.
  *
- * The reference is a photographic contact sheet: the thing you make to check what you have.
- * That is literally this product's job — proof that the photos are safely elsewhere — so the
- * screen is dense, utilitarian and framed rather than airy and carded.
- *
- * Two rules hold the whole thing together: hairline frames are the only structural device
- * (no shadows, no radius, no cards), and --verified is the only saturated colour, meaning
- * exactly one thing wherever it appears.
+ * Warm ceramic ground, obsidian ink, rose-ceramic hairlines, terracotta for the one action
+ * that commits, restrained emerald for verified. Two typefaces with distinct jobs: Hanken
+ * Grotesk carries language, Space Mono carries anything mechanical — counts, sizes, states,
+ * paths. Depth comes from tonal stacking and hairlines, never from heavy shadows.
  */
 
 :root {
-  /* Cool fibre paper, not cream. Warm grounds cast every photograph they surround. */
-  --paper: #edeef0;
-  --paper-lift: #f6f7f8;
-  --ink: #16181d;
-  --graphite: #5a6070;
-  --frame: #c9cdd4;
+  /* Substrates — warm, because a cool grey ground fought the ceramic palette it sits under. */
+  --canvas: #fbf7f4; /* unglazed ceramic; the app's ground */
+  --raised: #faf6f2; /* header band */
+  --surface: #ffffff; /* lifted panels, the matte inside a photo frame */
+  --recessed: #f3ece5; /* inset wells, segmented controls, progress tracks */
+  --bone: #faf3dd; /* warm tint, used sparingly */
 
-  /* The emotional payload of the product. Used for nothing that is not "safely in Drive". */
-  --verified: #1f6f4a;
-  --alert: #9b2c2c;
+  /* Ink */
+  --ink: #2b303a;
+  --muted: #5e6472;
+  --faint: #8c93a1;
 
-  --t-hero: clamp(1.375rem, 1.05rem + 1.5vw, 2rem);
-  --t-body: 1rem;
-  --t-small: 0.8125rem;
-  --t-micro: 0.6875rem;
+  /* Structure. This one colour does nearly all the framing work. */
+  --hairline: #eed2cc;
+  --hairline-strong: #e0c0b8;
 
-  --gutter: 2px;
-  --pad: 1.25rem;
+  /* Action — terracotta, and only for the control that commits something. */
+  --clay: #a1683a;
+  --clay-deep: #8e592f;
+  --clay-tint: #f8ebe3;
+
+  /* Verified. Means "confirmed in your Drive" and nothing else. */
+  --verified: #245f50;
+  --verified-tint: #e2efea;
+  --verified-line: #c4dfd6;
+
+  --alert: #a52a2a;
+  --alert-tint: #fdf2f0;
+
+  /* Type */
+  --sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --r: 4px; /* controls, cells, badges */
+  --r-lg: 8px; /* sheets, panels, modals */
+
+  --pad: 1rem;
+  --pad-lg: 1.5rem;
+  --pad-xl: 2.5rem;
 
   color-scheme: light;
 }
@@ -41,30 +59,49 @@
 html,
 body {
   margin: 0;
-  background: var(--paper);
+  background: var(--canvas);
   color: var(--ink);
 }
 
 body {
-  font-family: Archivo, ui-sans-serif, system-ui, sans-serif;
-  font-size: var(--t-body);
-  line-height: 1.5;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 20px;
   -webkit-font-smoothing: antialiased;
-}
-
-/* Counts have to line up. That is an information requirement, which is why it is solved with
- * figures rather than by introducing a second typeface. */
-.tabular {
-  font-variant-numeric: tabular-nums;
 }
 
 h1,
 h2,
-p {
+h3,
+p,
+figure {
   margin: 0;
 }
 
-/* Keyboard focus stays visible everywhere. */
+/* Anything mechanical: counts, sizes, states, paths, chunk positions. */
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Engraved labels — uppercase mono with wide tracking, like a camera body. */
+.label {
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex: none;
+  display: inline-block;
+}
+
 :focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;

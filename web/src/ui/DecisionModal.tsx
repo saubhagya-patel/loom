@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { DEFAULT_STRATEGY, STRATEGY_CHOICES, type Strategy } from '../heic/strategy.ts'
 
-// TRD §6's pre-upload modal. Shown only when a batch actually contains HEIC — by magic bytes,
-// not by filename.
 export function DecisionModal({
   heicCount,
   substitutedCount,
@@ -14,19 +12,20 @@ export function DecisionModal({
   onChoose: (strategy: Strategy) => void
   onCancel: () => void
 }) {
-  // On-device is the default and stays the default. The cloud route is the single exception to
-  // TRD §1's zero-knowledge claim, so it is always a deliberate choice (docs/plan.md §2.7).
+  // On-device stays the default. The cloud route is the one exception to the privacy claim,
+  // so it is always a deliberate choice (docs/plan.md §2.7).
   const [choice, setChoice] = useState<Strategy>(DEFAULT_STRATEGY)
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="heic-title">
-      <div className="modal">
-        <h2 id="heic-title">
-          {heicCount} {heicCount === 1 ? 'photo is' : 'photos are'} in HEIC format
+    <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="heic-title">
+      <div className="sheet-panel">
+        <span className="eyebrow label">Pre-flight decision</span>
+        <h2 id="heic-title" className="headline headline--sm">
+          {heicCount} {heicCount === 1 ? 'photo is' : 'photos are'} HEIC
         </h2>
-        <p className="muted">
-          HEIC is Apple&rsquo;s format. It saves space but does not open everywhere. How would you
-          like these handled?
+        <p className="lede">
+          Apple&rsquo;s format saves space but does not open everywhere. How should these be
+          handled?
         </p>
 
         <div className="choices">
@@ -38,9 +37,14 @@ export function DecisionModal({
                 checked={choice === option.value}
                 onChange={() => setChoice(option.value)}
               />
-              <span>
-                <strong>{option.title}</strong>
-                {option.value === DEFAULT_STRATEGY ? <em className="tag">recommended</em> : null}
+              <span className="choice-body">
+                <span className="choice-head">
+                  <span className="choice-title">{option.title}</span>
+                  {option.value === DEFAULT_STRATEGY ? (
+                    <span className="tag label">Recommended</span>
+                  ) : null}
+                  {option.touchesServer ? <span className="tag tag--warn label">Leaves device</span> : null}
+                </span>
                 <span className="choice-detail">{option.detail}</span>
               </span>
             </label>
@@ -48,16 +52,17 @@ export function DecisionModal({
         </div>
 
         {substitutedCount > 0 ? (
-          <p className="fine">
-            {substitutedCount} file{substitutedCount === 1 ? '' : 's'} named .heic turned out to be
-            JPEG already — your browser converted {substitutedCount === 1 ? 'it' : 'them'} on
-            selection. {substitutedCount === 1 ? 'It' : 'They'} will upload as-is.
+          <p className="log-detail mono">
+            {substitutedCount} other file{substitutedCount === 1 ? '' : 's'} named .heic turned out
+            to already be JPEG and will upload as-is.
           </p>
         ) : null}
 
-        <div className="modal-actions">
-          <button onClick={onCancel}>Cancel</button>
-          <button className="primary" onClick={() => onChoose(choice)}>
+        <div className="sheet-actions">
+          <button className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn--clay" onClick={() => onChoose(choice)}>
             Upload {heicCount === 1 ? 'it' : 'them'}
           </button>
         </div>
