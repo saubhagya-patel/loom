@@ -1,0 +1,8 @@
+# docs/ and agent-cache/ are hand-wrapped at 100 columns with tables laid out for
+# reading in a diff. Prettier realigns markdown tables, so it stays out of them.
+docs/
+agent-cache/
+CHANGELOG.md
+
+backend/generated/
+backend/prisma/

@@ -1,0 +1,38 @@
+{
+  "name": "luma",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=25"
+  },
+  "workspaces": [
+    "backend",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run -w @luma/backend dev",
+    "dev:web": "npm run -w web dev",
+    "typecheck": "npm run -w @luma/backend typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run -w @luma/backend test",
+    "test:e2e": "backend/tests/e2e/run.sh",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run web:lint && npm run web:build",
+    "db:up": "docker compose up -d --wait mysql",
+    "db:down": "docker compose stop mysql",
+    "db:reset": "docker compose down -v",
+    "db:shell": "docker compose exec mysql mysql -uluma -pluma luma",
+    "db:logs": "docker compose logs -f mysql",
+    "web:build": "npm run -w web build",
+    "web:lint": "npm run -w web lint"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.2",
+    "eslint": "^10.10.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.0"
+  }
+}
