@@ -10,6 +10,20 @@ completes.
 
 ## Unreleased
 
+### Phase 4 — Gallery and session state · 2026-09-21
+
+A dense contact sheet of everything already safe in your Drive, read straight from Drive by the
+browser — the server gained no endpoint for it. Thumbnails come from Drive itself, sized for the
+display; clicking one opens the file in Drive. Pages load as you reach the bottom, and an access
+token that expires mid-scroll is refreshed and retried rather than signing you out.
+
+The design took its cue from what Loom is actually for. It is not a gallery anyone browses: it
+is proof that the photos are somewhere safe, so that someone dares delete the originals. So the
+screen is a photographic contact sheet — dense square frames, hairline borders, cool proof-paper
+grey — with a plain sentence at the top saying how much is safe, and the grid below standing as
+its evidence. The upload queue and the landing page moved to the same language, so the app now
+reads as one product rather than three screens.
+
 ### Phase 3 — The HEIC pipeline · 2026-09-21
 
 iPhone photos land in Drive as something you can actually open, by whichever of TRD §6's three
