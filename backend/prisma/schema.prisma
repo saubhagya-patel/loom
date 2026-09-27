@@ -1,15 +1,8 @@
-// GENERATED FROM THE DATABASE — do not hand-author models here.
+// GENERATED FILE — do not edit.
 //
-// docs/plan.md §2.1: backend/db/schema.sql is the source of truth. After
-// editing and applying it yourself, run `npm run prisma:pull` to refresh this
-// file, then `npm run prisma:generate`.
-//
-// Hand-written exactly once, in Phase 0, because an empty database cannot be
-// introspected. It carries no models yet.
-//
-// Prisma 7 note: the datasource has no `url`. TRD §4's version of this file
-// would fail with P1012 for exactly that reason. Connection settings live in
-// prisma7.config.ts for the CLI, and the client receives a driver adapter.
+// Written by `npm run prisma:pull` from the live database, whose shape comes from the
+// hand-written backend/db/schema.sql. Edit that file, apply it, and re-pull; edits made
+// here are lost (docs/plan.md §2.1).
 
 generator client {
   provider = "prisma-client"
@@ -18,4 +11,13 @@ generator client {
 
 datasource db {
   provider = "mysql"
+}
+
+model users {
+  id            String   @id @db.VarChar(255)
+  email         String   @unique @db.VarChar(255)
+  refresh_token String   @db.Text
+  app_folder_id String?  @db.VarChar(255)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now())
 }

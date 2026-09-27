@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import ./src/bigint-json.ts --test \"tests/unit/**/*.test.ts\"",
     "prisma:generate": "prisma generate",
-    "prisma:pull": "prisma db pull",
+    "prisma:pull": "prisma db pull && bash scripts/stamp-generated-header.sh",
     "postinstall": "prisma generate"
   },
   "dependencies": {

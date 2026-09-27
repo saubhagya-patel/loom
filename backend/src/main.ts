@@ -15,6 +15,7 @@ async function main(): Promise<void> {
 
   // Fail at startup rather than on the first request.
   await withTimeout(store.ping(), STARTUP_TIMEOUT_MS, 'database connection')
+  await store.verifySchema()
   logger.info('database connected')
 
   const app = createApp({ logger, db: store, healthTimeoutMs: HEALTH_TIMEOUT_MS })
