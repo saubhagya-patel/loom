@@ -9,6 +9,7 @@
     "test": "node --import ./src/bigint-json.ts --test \"tests/unit/**/*.test.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:pull": "prisma db pull && bash scripts/stamp-generated-header.sh",
+    "prisma:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
   "dependencies": {

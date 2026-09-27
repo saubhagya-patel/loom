@@ -26,6 +26,7 @@
     "db:logs": "docker compose logs -f mysql",
     "prisma:generate": "npm run -w @loom/backend prisma:generate",
     "prisma:pull": "npm run -w @loom/backend prisma:pull",
+    "prisma:studio": "npm run -w @loom/backend prisma:studio",
     "web:build": "npm run -w web build",
     "web:lint": "npm run -w web lint"
   },
