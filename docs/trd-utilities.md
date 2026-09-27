@@ -110,3 +110,13 @@ tool ever needs a backend, it has stopped being this tool.
 
 No format conversion beyond HEIC → JPEG/PNG. No editing, cropping or metadata stripping — the
 last is tempting and is a different product.
+
+---
+
+## 5. Not here: backup health
+
+Backup health lives in `docs/plan.md` §10, not in this document. It is authenticated, reads
+Drive, and adds counters to the `users` table — the opposite of what this file describes. The
+two were discussed together and are recorded apart on purpose, so that "zero backend, no
+account, no request" stays true of everything in here.
+

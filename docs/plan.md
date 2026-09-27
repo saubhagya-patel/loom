@@ -560,3 +560,88 @@ only batching, the cap, and `jszip`.
 Safari decodes natively. These tools exist for Windows and Android, where it does not — so the
 WASM fallback is the *hot* path here, not the cold one, and its ~2 MB download is on the
 critical path for every real user of them.
+
+---
+
+## 10. Backup health
+
+**Status:** accepted, V1 · **Decided:** 2026-09-22
+
+A panel answering the one question the whole product exists for: *can I trust my backup?*
+
+```
+BACKUP HEALTH
+
+Confirmed in Drive just now      12,482      84.1 GB
+Interrupted, resumable                3       1.2 GB   expires in 4 days
+Failed                                0
+Uploaded by loom, all time       12,485      84.4 GB
+Most recent file                      Today · 10:42
+Folder                                Drive / loom      exists
+```
+
+### The one row that earns the panel
+
+**Interrupted, resumable** is already in IndexedDB and is surfaced nowhere. A resumable session
+dies after seven days, so *"three files are part-uploaded and you have four days to finish
+them"* is real, actionable, and slightly alarming — which is the correct emotional register
+for a backup tool.
+
+### The schema change, and why it is a change
+
+This adds **aggregate counters to `users`** — chosen over a per-file table, deliberately:
+
+```sql
+ALTER TABLE users
+  ADD COLUMN files_uploaded BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN bytes_uploaded BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN last_backup_at DATETIME(3) NULL;
+```
+
+§4.2 says the database holds no file metadata, ever, and that a column describing a file is an
+architecture change. **These columns describe no file.** They are quantities — how many, how
+much, how recently. A stolen dump still reveals nothing about what anyone stored; it gains only
+a usage profile. That is a real but much smaller disclosure, and it is the reason a per-file
+table was rejected: a manifest would let Loom say *which* file is missing, and would put
+filenames in the one place the architecture promises they never appear.
+
+### What the counters buy that Drive cannot answer
+
+This is the whole justification, and it is not "speed".
+
+Drive can only tell you **what is there**. It cannot tell you something is **gone**, because a
+deleted file leaves no trace to query. A monotonic count of what Loom has ever sent, compared
+against what Drive currently holds, detects exactly that:
+
+> Uploaded by loom, all time: 12,485 · Confirmed in Drive now: 12,482
+> **3 files are no longer in the loom folder.**
+
+Loom cannot say *which* — that would need the manifest we declined — but "something was removed"
+is a true and useful thing to surface, and it costs no filenames. `files_uploaded` is therefore
+**never decremented**.
+
+### Three consequences to design for, not discover
+
+1. **The server is not in the upload path, so the counters are client-reported.** Uploads go
+   browser → Drive; nothing reaches us. A sixth endpoint, `POST /api/backup/record`, takes
+   `{ files, bytes }` after a verified upload. It follows that **the counters are only as
+   honest as the client** — fine for a personal tool, and it must not be described anywhere as
+   an independent audit.
+2. **They will drift, and reconciliation is the repair.** A browser that dies between Drive
+   confirming and us recording loses the increment. So the panel **reconciles against Drive
+   every time it loads**: Drive's live count is authoritative for "confirmed now", the counter
+   is authoritative for "all time", and the gap between them is the signal rather than an
+   error. Never show a counter as though it were a measurement.
+3. **`BIGINT` activates the BigInt trap for the first time.** `agent-cache/knowledge.md`
+   records that the mariadb adapter returns MySQL integers as JavaScript `BigInt`, and that
+   `bigint-json.ts` serialises them **as strings** to stay lossless. Loom's one table has had
+   no integer columns until now, so this is the first time that safety net carries load: the
+   API will return `"bytesUploaded": "90194313216"`, and the client must `Number()` it. A
+   frontend that assumes a number will silently concatenate.
+
+### Sizing
+
+Roughly a day. The schema change follows §2.1 — hand-written SQL applied by hand, then
+`prisma db pull` — and the panel is assembly of data we already fetch, plus the queue state we
+already persist.
+
