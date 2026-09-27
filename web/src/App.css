@@ -1,0 +1,59 @@
+.probe {
+  max-width: 32rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.probe h1 {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 0.25rem 0 2rem;
+  opacity: 0.6;
+  font-size: 0.9rem;
+}
+
+.pending {
+  opacity: 0.6;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid currentColor;
+}
+
+dt {
+  opacity: 0.6;
+}
+
+dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.good {
+  color: #12694a;
+}
+
+.bad {
+  color: #a3231b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .good {
+    color: #5fd6a4;
+  }
+  .bad {
+    color: #ff8a80;
+  }
+}
