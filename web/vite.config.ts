@@ -8,13 +8,26 @@ import { defineConfig } from 'vite'
 // discipline is keeping it four), read it out of the backend's own .env at config time.
 function googleClientId(): string {
   const fromEnv = process.env['LOOM_GOOGLE_CLIENT_ID']
-  if (fromEnv) return fromEnv
+  if (fromEnv) return unquote(fromEnv)
   try {
     const env = readFileSync(new URL('../backend/.env', import.meta.url), 'utf8')
-    return /^LOOM_GOOGLE_CLIENT_ID=(.*)$/m.exec(env)?.[1]?.trim() ?? ''
+    return unquote(/^LOOM_GOOGLE_CLIENT_ID=(.*)$/m.exec(env)?.[1] ?? '')
   } catch {
     return ''
   }
+}
+
+// node --env-file strips surrounding quotes; reading the file ourselves does not, and
+// .env.example quotes DATABASE_URL, so a quoted value here is the expected shape rather than
+// a mistake. Without this the browser sends Google a client id wrapped in literal quote
+// characters and gets `invalid_client`, which reads as a missing OAuth client rather than a
+// malformed request.
+function unquote(value: string): string {
+  const trimmed = value.trim()
+  const quote = trimmed[0]
+  return (quote === '"' || quote === "'") && trimmed.endsWith(quote)
+    ? trimmed.slice(1, -1)
+    : trimmed
 }
 
 // The Node server runs separately on :8080. Proxying keeps the browser on one
