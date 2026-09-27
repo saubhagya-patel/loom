@@ -10,6 +10,26 @@ completes.
 
 ## Unreleased
 
+### Phase 2 — The resumable upload engine · 2026-09-15
+
+Files go straight from the browser into your Drive, in 8 MiB chunks, and survive a network drop
+or a page reload. The confirmed offset is always the number Drive reports in its `Range` header
+— never the client's own arithmetic — so a resumed upload cannot silently diverge. A spent retry
+ladder asks Drive where it got to rather than guessing. Queue state lives in IndexedDB; the
+session URI is treated as the write credential it is, and never logged or put in a URL.
+
+The engine owns its own state and React only watches it: separate subscriptions for the file
+list, each row, and a derived summary, with progress throttled so a queue of hundreds of files
+does not re-render the world on every chunk.
+
+Nothing about this phase touches the server. No endpoint was added, no byte of media reaches us,
+and the "delete your local copy" affordance stays hidden until Drive has confirmed the uploaded
+size back to the browser (TRD §9).
+
+Verified against a real account across nine checks, including a 250 MB upload interrupted by
+pulling the network, the same upload interrupted by a page reload, and a deliberately wrong file
+offered at the resume prompt — which is refused rather than appended.
+
 ### Phase 1 — Auth and the Drive handshake · 2026-09-14
 
 Sign in with Google, get a `loom` folder in your own Drive, and stay signed in across a server
