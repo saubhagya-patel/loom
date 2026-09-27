@@ -129,13 +129,26 @@ Phase 2's real-upload requirement is singled out because it is the one thing in 
 test suite cannot prove. Phase 5's negative test is singled out for the same reason: TRD §9's
 guardrail is a promise about something *not* happening.
 
+**Amended 2026-09-14 (§5.2).** `npm test` above now means only the Phase 0 suites plus Phase 2's
+chunker and state machine; no new tests are written for Phases 1, 3, 4 or 5. The demonstrations
+in each row — the real sign-in, the real interrupted upload, the three HEIC paths, the browser
+run, the phone — are unchanged and now carry the whole weight of the word "verified". A phase
+whose demonstration has not been *run* is not done, and this matters more now, not less: with
+tests deferred, "it should work" has nothing behind it at all.
+
 ---
 
 ## 5. The working agreement
 
 1. **Plan before code.** A phase plan lands in `agent-cache/plans/`, is presented, and **waits
    for approval.** No implementation before that.
-2. **Test first** for anything with logic. Red, then green.
+2. **Tests are deferred as of 2026-09-14** — amended mid-project, deliberately, to ship V1
+   faster. Verification moves to running the real thing (§4). The exception is
+   `docs/plan.md` §5.3's **chunker and upload state machine**, which stay test-first: their
+   only alternative proof is a real multi-hundred-megabyte upload per iteration, and their
+   failure mode is a file that uploads "successfully" with wrong bytes. That is the one place
+   where skipping tests costs speed rather than saving it. The suites already written in
+   Phase 0 stay and keep running in `npm run verify`.
 3. **Verify with real output.** The §4 command runs and its output is shown.
 4. **Self-review before done** — against the TRD sections the phase claims and the §3
    checklist concerns it touched.
