@@ -169,7 +169,15 @@ export function createQueue(deps: {
   const update = (id: string, patch: Partial<QueueItem>, throttle = false): void => {
     const entry = entries.get(id)
     if (!entry) return
-    entry.item = { ...entry.item, ...patch }
+    const next = { ...entry.item, ...patch }
+
+    // An error describes a failure, so any transition out of one clears it. Without this a
+    // file that failed, was retried and then succeeded renders "verified in Drive" and the
+    // stale failure side by side — two statements that cannot both be true.
+    if (patch.state !== undefined && patch.state !== 'FAILED' && !('error' in patch)) {
+      delete next.error
+    }
+    entry.item = next
 
     // Byte counts are transient and arrive far faster than a screen can use
     // (vercel-react-best-practices: rerender-use-ref-transient-values). State changes always
