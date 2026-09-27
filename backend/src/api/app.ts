@@ -10,6 +10,7 @@ import type { Users } from '../store/users.ts'
 import { AppError, errorHandler, notFound } from './errors.ts'
 import { healthHandler } from './health.ts'
 import { authRoutes } from './routes/auth.ts'
+import { mediaRoutes } from './routes/media.ts'
 import { userRoutes } from './routes/user.ts'
 
 // Method, path, status and duration — and deliberately nothing else. A filename
@@ -98,6 +99,7 @@ export function createApp({
   app.get('/healthz', healthHandler(logger, db, healthTimeoutMs))
   app.use('/api/auth', authRoutes({ cfg, users, googleAuth, drive }))
   app.use('/api/user', userRoutes(users))
+  app.use('/api/media', mediaRoutes(users))
 
   app.use(notFound())
   app.use(errorHandler(logger))

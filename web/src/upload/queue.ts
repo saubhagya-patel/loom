@@ -203,6 +203,79 @@ export function createQueue(deps: {
     }
   }
 
+  /**
+   * TRD §6's opt-in cloud route, and the only path in Loom where media reaches our server.
+   *
+   * The browser opens the resumable session itself — it holds the Drive token, and the server
+   * never gets one — then hands the session URI and the original HEIC to our endpoint. The
+   * server converts as it streams and does the PUTs, so there is no chunk loop here at all.
+   */
+  async function runCloudTranscode(entry: Entry, file: File): Promise<void> {
+    const { id } = entry.item
+
+    if (!entry.record) {
+      update(id, { state: 'INITIATING' })
+      const token = deps.getToken()
+      if (!token && !(await deps.refreshToken())) return fail(id, 'not signed in')
+      try {
+        const uri = await deps.transport.initiate(
+          // No size: the JPEG does not exist yet, so its length is unknowable here.
+          { name: file.name.replace(/\.hei[cf]$/i, '.jpg'), mimeType: 'image/jpeg' },
+          deps.folderId,
+          deps.getToken() ?? '',
+        )
+        entry.record = {
+          id,
+          name: file.name,
+          size: file.size,
+          lastModified: file.lastModified,
+          sessionUri: uri,
+          confirmedBytes: 0,
+          createdAt: Date.now(),
+          // Server-produced bytes, so this record can never be resumed against either.
+          derived: true,
+        }
+        await persist(entry)
+      } catch (err) {
+        return fail(id, err instanceof InitiateError ? messageFor(err.code) : 'could not start the upload')
+      }
+    }
+
+    // No byte-level progress on this route: the browser hands the whole file to one fetch and
+    // cannot observe its own upload without dropping to XHR. The row sits at UPLOADING until
+    // the server answers.
+    update(id, { state: 'UPLOADING' })
+
+    const body = new FormData()
+    body.append('photo', file, file.name)
+
+    let res: Response
+    try {
+      res = await fetch('/api/media/transcode-stream', {
+        method: 'POST',
+        // A header, not a form field, so our server can check it before parsing any body.
+        headers: { 'X-Loom-Session-Uri': entry.record.sessionUri },
+        body,
+      })
+    } catch {
+      return fail(id, 'could not reach the converter')
+    }
+
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => null)) as { error?: { message?: string } } | null
+      return fail(id, payload?.error?.message ?? 'the conversion failed')
+    }
+
+    const payload = (await res.json()) as { driveFileId?: string }
+    if (!payload.driveFileId) return fail(id, 'the converter returned no file')
+
+    // VERIFYING is not skipped here. This is the route with the least direct evidence the bytes
+    // arrived, and it gates TRD §9's deletion guardrail.
+    entry.record.driveFileId = payload.driveFileId
+    update(id, { size: entry.item.size })
+    return verify(entry, payload.driveFileId)
+  }
+
   async function runFile(entry: Entry): Promise<void> {
     const { id } = entry.item
 
@@ -213,11 +286,17 @@ export function createQueue(deps: {
         return
       }
 
+      // A strategy only means anything for a file that is actually HEIC. Everything else
+      // uploads exactly as picked, whatever the batch chose.
+      const route = entry.strategy === 'raw' ? 'raw' : (await isHeic(file)) ? entry.strategy : 'raw'
+
+      if (route === 'cloud') return runCloudTranscode(entry, file)
+
       // --- convert -------------------------------------------------------------
       // Lazily, and here rather than before the queue: the identity hash and the re-selection
       // prompt are both about the file the user actually has on disk.
       if (!entry.source) {
-        if (entry.strategy === 'device' && (await isHeic(file))) {
+        if (route === 'device') {
           update(id, { state: 'CONVERTING' })
           try {
             entry.source = await convertToJpeg(file)

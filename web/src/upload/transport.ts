@@ -17,7 +17,10 @@ export type ChunkResult =
 
 // What is actually being uploaded, which is not always the file the user picked: a converted
 // HEIC has a different name, type and size from its source.
-export type UploadMeta = { name: string; mimeType: string; size: number }
+// `size` is omitted on the cloud route: the server converts as it streams, so the JPEG's
+// length is not known when the session is opened. X-Upload-Content-Length is a hint to Drive,
+// not a requirement, and the sink declares the real total on its final chunk instead.
+export type UploadMeta = { name: string; mimeType: string; size?: number }
 
 export type Transport = {
   initiate: (meta: UploadMeta, folderId: string, token: string) => Promise<string>
@@ -94,7 +97,7 @@ export function createTransport(): Transport {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json; charset=UTF-8',
           'X-Upload-Content-Type': meta.mimeType || 'application/octet-stream',
-          'X-Upload-Content-Length': String(meta.size),
+          ...(meta.size === undefined ? {} : { 'X-Upload-Content-Length': String(meta.size) }),
         },
         body: JSON.stringify({ name: meta.name, parents: [folderId] }),
       })
