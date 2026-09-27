@@ -1,3 +1,6 @@
+import { convertToJpeg } from '../heic/convert.ts'
+import { isHeic } from '../heic/detect.ts'
+import type { Strategy } from '../heic/strategy.ts'
 import { chunkAt, contentRange } from './chunk.ts'
 import { openQueueDb, type QueueDb, type QueueRecord } from './db.ts'
 import { fileIdOf, matchesFileId } from './identity.ts'
@@ -5,6 +8,7 @@ import { InitiateError, type ChunkResult, type Transport } from './transport.ts'
 
 export type UploadState =
   | 'QUEUED'
+  | 'CONVERTING'
   | 'INITIATING'
   | 'UPLOADING'
   | 'PAUSED'
@@ -40,7 +44,7 @@ export type QueueSummary = {
 
 export type Queue = {
   hydrate: () => Promise<void>
-  add: (files: File[]) => Promise<void>
+  add: (files: File[], strategy: Strategy) => Promise<void>
   pause: (id: string) => void
   resume: (id: string) => void
   cancel: (id: string) => void
@@ -55,7 +59,11 @@ export type Queue = {
 
 type Entry = {
   item: QueueItem
+  /** The file the user picked. Identity and re-selection are always about this one. */
   file: File | null
+  /** What actually gets uploaded — the same object, unless conversion replaced it. */
+  source: Blob | null
+  strategy: Strategy
   record: QueueRecord | null
   paused: boolean
   cancelled: boolean
@@ -119,6 +127,7 @@ export function createQueue(deps: {
   // the most frequent update, never touches the header.
   const ACTIVE: ReadonlySet<UploadState> = new Set<UploadState>([
     'QUEUED',
+    'CONVERTING',
     'INITIATING',
     'UPLOADING',
     'VERIFYING',
@@ -195,7 +204,7 @@ export function createQueue(deps: {
   }
 
   async function runFile(entry: Entry): Promise<void> {
-    const { id, size } = entry.item
+    const { id } = entry.item
 
     for (let restarts = 0; restarts <= RESTART_LIMIT; restarts++) {
       const file = entry.file
@@ -204,21 +213,53 @@ export function createQueue(deps: {
         return
       }
 
+      // --- convert -------------------------------------------------------------
+      // Lazily, and here rather than before the queue: the identity hash and the re-selection
+      // prompt are both about the file the user actually has on disk.
+      if (!entry.source) {
+        if (entry.strategy === 'device' && (await isHeic(file))) {
+          update(id, { state: 'CONVERTING' })
+          try {
+            entry.source = await convertToJpeg(file)
+          } catch {
+            // One file's conversion failing must not take the batch with it.
+            return fail(id, 'could not convert this photo')
+          }
+          // The progress bar measures what is being sent, which is no longer the file's size.
+          update(id, { size: entry.source.size })
+        } else {
+          entry.source = file
+        }
+      }
+
+      const source = entry.source
+      const uploadSize = source.size
+      const derived = source !== file
+
       // --- initiate ------------------------------------------------------------
       if (!entry.record) {
         update(id, { state: 'INITIATING' })
         const token = deps.getToken()
         if (!token && !(await deps.refreshToken())) return fail(id, 'not signed in')
         try {
-          const uri = await deps.transport.initiate(file, deps.folderId, deps.getToken() ?? '')
+          const uri = await deps.transport.initiate(
+            {
+              name: derived ? file.name.replace(/\.hei[cf]$/i, '.jpg') : file.name,
+              mimeType: derived ? 'image/jpeg' : file.type,
+              size: uploadSize,
+            },
+            deps.folderId,
+            deps.getToken() ?? '',
+          )
           entry.record = {
             id,
             name: file.name,
-            size,
+            size: uploadSize,
             lastModified: file.lastModified,
             sessionUri: uri,
             confirmedBytes: 0,
             createdAt: Date.now(),
+            derived,
           }
           await persist(entry)
         } catch (err) {
@@ -234,22 +275,22 @@ export function createQueue(deps: {
       update(id, { state: 'UPLOADING', uploadedBytes: record.confirmedBytes })
 
       // --- chunk loop ----------------------------------------------------------
-      while (record.confirmedBytes < size) {
+      while (record.confirmedBytes < uploadSize) {
         if (entry.cancelled) return
         if (entry.paused) {
           update(id, { state: 'PAUSED' })
           return
         }
 
-        const { start, end } = chunkAt(record.confirmedBytes, size)
+        const { start, end } = chunkAt(record.confirmedBytes, uploadSize)
         let result: ChunkResult
         try {
           result = await deps.transport.putChunk(
             record.sessionUri,
             // Blob.slice only. Never read a whole file — a multi-gigabyte video would crash
             // the tab (docs/plan.md §8).
-            file.slice(start, end + 1),
-            contentRange(start, end, size),
+            source.slice(start, end + 1),
+            contentRange(start, end, uploadSize),
           )
         } catch {
           result = { kind: 'retryable', status: 0 } // network error, offline, aborted
@@ -285,7 +326,7 @@ export function createQueue(deps: {
           if (attempts > MAX_ATTEMPTS) {
             // The ladder is spent. Ask Drive where it actually got to rather than guessing,
             // then carry on from there (§5.2).
-            const probe = await deps.transport.queryOffset(record.sessionUri, size).catch(
+            const probe = await deps.transport.queryOffset(record.sessionUri, uploadSize).catch(
               (): ChunkResult => ({ kind: 'retryable', status: 0 }),
             )
             if (probe.kind === 'incomplete') {
@@ -305,7 +346,7 @@ export function createQueue(deps: {
         return fail(id, messageFor(result.code))
       }
 
-      if (record.confirmedBytes >= size && record.driveFileId) {
+      if (record.confirmedBytes >= uploadSize && record.driveFileId) {
         return verify(entry, record.driveFileId)
       }
 
@@ -346,6 +387,13 @@ export function createQueue(deps: {
       await store.pruneExpired()
       for (const record of await store.all()) {
         if (entries.has(record.id)) continue
+        // Derived bytes cannot be reproduced byte-for-byte, so this record cannot be resumed
+        // against — see QueueRecord.derived. Dropping it restarts the file cleanly instead of
+        // offering a resume that would corrupt it.
+        if (record.derived) {
+          await store.remove(record.id)
+          continue
+        }
         entries.set(record.id, {
           // The offset survived the reload; the File handle did not, and no storage can change
           // that (§2.5). The user re-selects the file and the stored offset makes it cheap.
@@ -358,6 +406,10 @@ export function createQueue(deps: {
             verified: false,
           },
           file: null,
+          source: null,
+          // A persisted record is never derived (those were dropped above), so its bytes come
+          // straight off disk and 'raw' is the honest strategy for the resumed upload.
+          strategy: 'raw',
           record,
           paused: false,
           cancelled: false,
@@ -366,19 +418,22 @@ export function createQueue(deps: {
       emitIds()
     },
 
-    add: async (files) => {
+    add: async (files, strategy) => {
       for (const file of files) {
         const id = await fileIdOf(file)
         const existing = entries.get(id)
         if (existing) {
           // Re-picking a file already queued supplies the handle rather than duplicating it.
           existing.file = file
+          existing.source ??= null
           if (existing.item.state === 'NEEDS_FILE') update(id, { state: 'QUEUED' })
           continue
         }
         entries.set(id, {
           item: { id, name: file.name, size: file.size, state: 'QUEUED', uploadedBytes: 0, verified: false },
           file,
+          source: null,
+          strategy,
           record: (await (await ensureDb()).get(id)) ?? null,
           paused: false,
           cancelled: false,

@@ -19,6 +19,17 @@ export type QueueRecord = {
   confirmedBytes: number
   createdAt: number
   driveFileId?: string
+  /**
+   * True when the uploaded bytes were produced here rather than read from disk — a converted
+   * HEIC. Such a record is dropped on hydrate rather than resumed: heic2any is not guaranteed
+   * to emit byte-identical output twice, so resuming would splice a second encode onto an
+   * offset established by the first. The result would be the right *length*, which means Drive
+   * confirms it and our verify step passes while the image is broken at the seam.
+   *
+   * Restarting costs a second for a single-digit-megabyte photo. Videos are never converted,
+   * so full resume survives where it actually matters.
+   */
+  derived: boolean
 }
 
 // Drive expires a resumable session after one week. Records are pruned on load so a resume

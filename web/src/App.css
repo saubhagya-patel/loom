@@ -106,3 +106,46 @@ button.primary:hover { background: #1f2937; }
 
 .reselect { display: flex; flex-direction: column; gap: 0.4rem; }
 .safe { margin: 0; font-size: 0.85rem; color: #067647; }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(17 24 39 / 45%);
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  z-index: 10;
+}
+.modal {
+  background: #fff;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  max-width: 32rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.modal h2 { margin: 0; font-size: 1.1rem; }
+
+.choices { display: flex; flex-direction: column; gap: 0.5rem; }
+.choice {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+}
+.choice--on { border-color: #111827; background: #f9fafb; }
+.choice > span { display: flex; flex-direction: column; gap: 0.15rem; }
+.choice-detail { font-size: 0.85rem; color: #6b7280; line-height: 1.5; }
+.tag {
+  font-size: 0.7rem;
+  font-style: normal;
+  color: #067647;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }

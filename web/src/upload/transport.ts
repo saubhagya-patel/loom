@@ -15,8 +15,12 @@ export type ChunkResult =
   | { kind: 'retryable'; status: number }
   | { kind: 'fatal'; status: number; code: string }
 
+// What is actually being uploaded, which is not always the file the user picked: a converted
+// HEIC has a different name, type and size from its source.
+export type UploadMeta = { name: string; mimeType: string; size: number }
+
 export type Transport = {
-  initiate: (file: File, folderId: string, token: string) => Promise<string>
+  initiate: (meta: UploadMeta, folderId: string, token: string) => Promise<string>
   putChunk: (uri: string, blob: Blob, range: string) => Promise<ChunkResult>
   queryOffset: (uri: string, total: number) => Promise<ChunkResult>
   sizeOf: (driveFileId: string, token: string) => Promise<number | null>
@@ -83,16 +87,16 @@ async function classify(res: Response): Promise<ChunkResult> {
 
 export function createTransport(): Transport {
   return {
-    initiate: async (file, folderId, token) => {
+    initiate: async (meta, folderId, token) => {
       const res = await fetch(RESUMABLE_URL, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json; charset=UTF-8',
-          'X-Upload-Content-Type': file.type || 'application/octet-stream',
-          'X-Upload-Content-Length': String(file.size),
+          'X-Upload-Content-Type': meta.mimeType || 'application/octet-stream',
+          'X-Upload-Content-Length': String(meta.size),
         },
-        body: JSON.stringify({ name: file.name, parents: [folderId] }),
+        body: JSON.stringify({ name: meta.name, parents: [folderId] }),
       })
       if (!res.ok) throw new InitiateError(res.status, await reasonOf(res))
 
