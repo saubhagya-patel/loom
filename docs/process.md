@@ -143,12 +143,18 @@ tests deferred, "it should work" has nothing behind it at all.
 1. **Plan before code.** A phase plan lands in `agent-cache/plans/`, is presented, and **waits
    for approval.** No implementation before that.
 2. **Tests are deferred as of 2026-09-14** — amended mid-project, deliberately, to ship V1
-   faster. Verification moves to running the real thing (§4). The exception is
-   `docs/plan.md` §5.3's **chunker and upload state machine**, which stay test-first: their
-   only alternative proof is a real multi-hundred-megabyte upload per iteration, and their
-   failure mode is a file that uploads "successfully" with wrong bytes. That is the one place
-   where skipping tests costs speed rather than saving it. The suites already written in
-   Phase 0 stay and keep running in `npm run verify`.
+   faster. Verification moves to running the real thing (§4), and the author verifies by
+   reading the code and exercising the app. The Phase 0 suites stay and keep running in
+   `npm run verify`; no new tests are written for any later phase.
+
+   The chunker and upload state machine were carved out as still-test-first when this was
+   first amended, then folded back in on 2026-09-14 — the author takes their manual
+   verification. What that costs is stated plainly so it is not rediscovered: their failure
+   mode is a file that uploads "successfully" with the wrong bytes, and the only proof left
+   is a real upload per iteration. `docs/plan.md` §2.6's rule — Drive's `Range` header is the
+   authority on the confirmed offset, never the client's own counter — therefore stops being
+   a design preference and becomes the load-bearing correctness guard. It is not negotiable
+   in Phase 2, because nothing else is watching.
 3. **Verify with real output.** The §4 command runs and its output is shown.
 4. **Self-review before done** — against the TRD sections the phase claims and the §3
    checklist concerns it touched.
