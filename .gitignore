@@ -1,0 +1,27 @@
+# zoro per-project working state — never committed (sword.md non-negotiable)
+agent-cache/
+
+# Node / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Env & secrets. LUMA_TOKEN_KEY and the Google client secret live here and
+# nowhere else in the tree.
+.env
+.env.*
+!.env.example
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# npm workspace lockfile is committed; caches are not
+.npm/
+.eslintcache
+
+# Prisma client is generated from db/schema.sql; regenerate with prisma:generate
+backend/generated/
