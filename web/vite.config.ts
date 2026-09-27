@@ -40,6 +40,10 @@ const target = process.env['LOOM_API_TARGET'] ?? 'http://127.0.0.1:8080'
 
 export default defineConfig({
   plugins: [react()],
+  // ES workers can code-split. Without this the worker's dynamic import of libheif is inlined
+  // into the worker chunk, so an iPhone — which decodes HEIC natively and never reaches the
+  // fallback — would still download ~2 MB of WASM the moment it converted anything.
+  worker: { format: 'es' },
   define: {
     // Empty when unset; the landing page says so rather than failing inside Google's script.
     __GOOGLE_CLIENT_ID__: JSON.stringify(googleClientId()),

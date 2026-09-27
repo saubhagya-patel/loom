@@ -18,6 +18,7 @@
     "busboy": "^1.6.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
+    "heic-decode": "^2.1.0",
     "helmet": "^8.3.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",

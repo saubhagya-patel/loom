@@ -1,43 +1,79 @@
 import type { Request } from 'express'
+import type { Readable } from 'node:stream'
 import busboy from 'busboy'
+import { all as decodeHeicAll } from 'heic-decode'
 import sharp from 'sharp'
 import { AppError } from '../api/errors.ts'
 import { createDriveSink } from './drive-sink.ts'
 
 // libvips keeps an operation cache and spins a thread per core by default. Both are tuned for
-// a batch image server, and both are wrong for a single streaming conversion: the cache holds
-// decoded data alive after we are done with it, and the threads each take a working buffer.
-// Measured on a 17 MB input: this and sequentialRead below took peak growth from ~308 MB to a
-// fraction of it.
+// a batch image server and both are wrong for a single streaming conversion.
 sharp.cache(false)
 sharp.concurrency(1)
 
-// A 32 MiB cap bounds the bytes, not the pixels: a small file can declare enormous dimensions
-// and libvips would allocate for them. An iPhone still is about 12 MP, so 50 MP leaves ample
-// headroom while refusing a decompression bomb — and it is what bounds peak memory, since the
-// decoded raster is three bytes per pixel.
+// A byte cap bounds the file, not the pixels: a small file can declare enormous dimensions.
+// An iPhone still is about 12 MP, so 50 MP refuses a decompression bomb with room to spare —
+// and it is checked against the reported dimensions *before* anything is decoded.
 const MAX_PIXELS = 50_000_000
+const QUALITY = 88
 
-// MEASURED, so the claim in docs/plan.md §2.7 stays honest. A 17 MB / 20 MP input peaks around
-// 230 MB of RSS above baseline, and tuning the knobs above took it there from ~308 MB.
-//
-// It is **bounded**, not flat, and the difference matters. `sharp` buffers its *stream input*
-// internally — libvips needs a seekable source — and decoding then costs three bytes per pixel
-// regardless of how the bytes arrived. So memory tracks the image's dimensions, capped by
-// MAX_PIXELS, not the file's size.
-//
-// What §2.7 actually promises is still true: nothing is written to disk, nothing outlives the
-// request, and there is no cleanup path that can leak because there is nothing to clean up.
-// The output side genuinely streams, in 8 MiB chunks, via drive-sink.ts. Concurrent requests
-// multiply this, which is a deployment question for Phase 5 rather than a local-V1 one.
+const HEIC_BRANDS = new Set(['heic', 'heix', 'heim', 'heis', 'hevc', 'hevx', 'hevm', 'hevs', 'mif1', 'msf1'])
+
+function isHeic(input: Buffer): boolean {
+  return (
+    input.length >= 12 &&
+    input.subarray(4, 8).toString('latin1') === 'ftyp' &&
+    HEIC_BRANDS.has(input.subarray(8, 12).toString('latin1'))
+  )
+}
+
+/**
+ * sharp does the encoding; it does not do the HEIC decoding.
+ *
+ * Measured 2026-09-21: sharp 0.35.4's bundled libheif 1.23.2 cannot decode HEVC-coded HEIC at
+ * all — every file fails with `bad seek to <filesize + 32>`, including one Apple's own encoder
+ * produced, and including files macOS opens without complaint. sharp 0.35.4 is the latest
+ * release, so there is no upgrade to take. Its JPEG *encoding* is fine and fast, so it keeps
+ * that half and libheif-wasm does the decode.
+ */
+async function toJpegStream(input: Buffer): Promise<Readable> {
+  if (!isHeic(input)) {
+    return sharp(input, { limitInputPixels: MAX_PIXELS }).jpeg({ quality: QUALITY })
+  }
+
+  const images = await decodeHeicAll({ buffer: new Uint8Array(input) })
+  try {
+    // A HEIC can hold a burst or a sequence. V1 takes the first image; grouping is V2
+    // (docs/plan.md §2.9).
+    const first = images[0]
+    if (!first) throw new AppError(422, 'not_an_image', 'that file contains no image')
+    if (first.width * first.height > MAX_PIXELS) {
+      throw new AppError(413, 'too_large', 'that photo has too many pixels to convert here')
+    }
+
+    const { width, height, data } = await first.decode()
+    return sharp(Buffer.from(data.buffer, data.byteOffset, data.byteLength), {
+      raw: { width, height, channels: 4 },
+      limitInputPixels: MAX_PIXELS,
+    }).jpeg({ quality: QUALITY })
+  } finally {
+    // Frees the decoder's WASM heap. Without this each request leaks it for the life of the
+    // process, which on this path means leaking a decoded photo.
+    images.dispose()
+  }
+}
 
 /**
  * The single exception to TRD §1's zero-knowledge storage, and the fence around it is as much
  * the deliverable as the conversion (docs/plan.md §2.7).
  *
- * busboy -> sharp -> Drive, as streams, with backpressure preserved. No multer, no disk, no
- * memory storage, no temp files — so there is no cleanup path that can leak, because there is
- * nothing to clean up.
+ * **§2.7 asks for the input to be streamed, and that is not achievable.** HEIC is an indexed
+ * container: the decoder seeks around it, so it needs the whole thing and a seekable source.
+ * That is a property of the format, not of any library. The input is therefore buffered —
+ * bounded by the same 32 MiB cap the route already enforces, held only for the life of the
+ * request. What §2.7 actually promises still holds: nothing on disk, no temp files, nothing
+ * outliving the request, and no cleanup path that can leak. The *output* still streams into
+ * Drive in 8 MiB chunks via drive-sink.ts.
  */
 export function transcodeToDrive(req: Request, sessionUri: string, maxBytes: number): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -46,42 +82,43 @@ export function transcodeToDrive(req: Request, sessionUri: string, maxBytes: num
 
     bb.on('file', (_name, stream) => {
       sawFile = true
+      const parts: Buffer[] = []
+      let received = 0
 
-      // sharp() with no argument is a TRANSFORM STREAM. sharp(buffer) is the form every example
-      // uses and it is wrong here: it reads the whole input into memory, which defeats the
-      // entire point of the pipe and makes resident memory track the upload size.
-      //
-      // sequentialRead lets libvips work top-to-bottom in strips instead of pulling the whole
-      // raster in for random access — the single biggest lever on peak memory here.
-      //
-      // Not mozjpeg: it is markedly slower, and TRD §6 sells this route as the *fast* one for
-      // budget phones. A slower cloud path than the on-device path has no reason to exist.
-      const converter = sharp({ sequentialRead: true, limitInputPixels: MAX_PIXELS })
-        .jpeg({ quality: 88 })
-
-      // A second line of defence behind the Content-Length check in the route. If a client
-      // lies about its length, busboy stops the stream here.
-      stream.on('limit', () => {
-        converter.destroy()
-        reject(new AppError(413, 'too_large', 'that photo is too large to convert here'))
+      stream.on('data', (chunk: Buffer) => {
+        received += chunk.length
+        // Belt to the route's Content-Length brace: a client can lie about its length, and
+        // this is the number that is actually true.
+        if (received > maxBytes) {
+          stream.destroy()
+          reject(new AppError(413, 'too_large', 'that photo is too large to convert here'))
+          return
+        }
+        parts.push(chunk)
       })
 
+      stream.on('limit', () => reject(new AppError(413, 'too_large', 'that photo is too large to convert here')))
       stream.on('error', () => reject(new AppError(400, 'upload_failed', 'the upload stream failed')))
-      converter.on('error', () => reject(new AppError(422, 'not_an_image', 'that file could not be converted')))
-      stream.pipe(converter)
 
-      void (async () => {
-        try {
-          const sink = createDriveSink(sessionUri)
-          // `for await` is what preserves backpressure: the converter stays paused while a PUT
-          // is in flight, so a slow network throttles the conversion rather than queueing it
-          // up in memory.
-          for await (const chunk of converter) await sink.write(chunk as Buffer)
-          resolve(await sink.end())
-        } catch (err) {
-          reject(err instanceof AppError ? err : new AppError(502, 'transcode_failed', 'the conversion failed'))
-        }
-      })()
+      stream.on('end', () => {
+        void (async () => {
+          try {
+            const jpeg = await toJpegStream(Buffer.concat(parts))
+            const sink = createDriveSink(sessionUri)
+            // `for await` is what preserves backpressure on the way out: the encoder stays
+            // paused while a PUT is in flight, so a slow network throttles the conversion
+            // rather than queueing its output in memory.
+            for await (const chunk of jpeg) await sink.write(chunk as Buffer)
+            resolve(await sink.end())
+          } catch (err) {
+            reject(
+              err instanceof AppError
+                ? err
+                : new AppError(422, 'not_an_image', 'that file could not be converted'),
+            )
+          }
+        })()
+      })
     })
 
     bb.on('error', () => reject(new AppError(400, 'upload_failed', 'the upload could not be read')))
