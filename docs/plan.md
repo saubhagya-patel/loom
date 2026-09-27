@@ -439,7 +439,39 @@ Upload recovery across a real network drop on a real phone · touch targets and 
 the TRD §9 deletion guardrail verified as a *negative* test: no delete prompt appears until
 `VERIFYING` passes · a full `pino` log audit against §2.8 · OAuth consent screen moved off
 "Testing" (see the 7-day refresh-token expiry in `agent-cache/knowledge.md`) · `Secure` cookies
-and an `Origin` check confirmed in a production-like config.
+and an `Origin` check confirmed in a production-like config · **a reusable confirmation
+dialog, first used on sign-out** (below).
+
+#### A reusable confirmation dialog
+
+Sign-out currently happens on a single click, and it is more destructive than it looks: it
+drops the access token, and any upload in flight dies with it. That deserves an "are you
+sure", and there will be others — cancelling a part-finished upload, clearing a queue,
+eventually revoking access.
+
+So it is built **once, generic**, not as a sign-out special case:
+
+```ts
+confirm({
+  title: string
+  body?: string
+  confirmLabel: string        // names the action: "Sign out", not "OK"
+  tone?: 'normal' | 'destructive'
+}): Promise<boolean>
+```
+
+* A promise, so a caller reads as `if (await confirm({…})) …` rather than threading callbacks
+  and open/close state through three components.
+* One dialog element at the app root, driven by a small store — not one per caller.
+* **The confirm button names the action** (`frontend-design`: an action keeps the same name
+  through the whole flow). No "OK"/"Cancel" pairs.
+* Escape and the backdrop cancel; focus moves into the dialog and returns to the trigger;
+  `role="alertdialog"` with the title as its accessible name.
+* Reuses the existing modal surface — the `#FFFFFF` panel with the leading ink rule — so it is
+  a variant of a thing that exists rather than a second modal system.
+* **It must say what is at stake when something is in flight.** "Sign out" with three uploads
+  running should say so and count them, because the generic wording would be a lie about the
+  consequence.
 
 ---
 
@@ -485,3 +517,46 @@ cannot run this project. See `agent-cache/knowledge.md`.
 **Browser memory on multi-gigabyte video.** Nothing may ever call
 `FileReader.readAsArrayBuffer` on a whole file. `Blob.slice()` per chunk is the only allowed
 read path, and this is worth a lint-level rule of thumb rather than a code review each time.
+
+---
+
+## 9. After V1 — the standalone utilities
+
+Specified in `docs/trd-utilities.md`: a **bulk HEIC → ZIP converter** and an **instant HEIC
+viewer**. Both are zero-backend, unauthenticated, and run entirely in the browser's memory.
+
+**Why they belong to this project rather than to another one.** Loom's whole claim is that it
+does not touch your files. These tools are that claim with nothing else attached — no account,
+no Drive, no request. They are also the only part of this project that is useful to somebody
+who will never sign in, which makes them the honest front door rather than a marketing page.
+
+**They are post-V1 and do not block it.** V1 ships when `docs/trd.md` is satisfied; these are
+additive and share only the HEIC decoder.
+
+| Phase | Deliverable | Rough size |
+|---|---|---|
+| 6 | Instant HEIC viewer — drop one file, see it, download it as JPEG | 1 d |
+| 7 | Bulk HEIC → ZIP — batch convert, capped, progress, one archive | 1–2 d |
+
+Phase 6 first because it is the smaller of the two and shares every piece Phase 7 needs: the
+dropzone, the decode call, the object-URL lifecycle and the download link. Phase 7 then adds
+only batching, the cap, and `jszip`.
+
+**Three things decided up front**, because each is a defect waiting to be written:
+
+1. **Reuse `web/src/heic/convert.ts`. Do not reintroduce `heic2any`.** Phase 3 established it
+   calls `document.createElement`, so it cannot run in a Worker — survivable for a one-image
+   viewer, fatal for a twenty-file batch that would freeze the tab for its whole run. The
+   existing decoder tries `createImageBitmap` natively first and falls back to libheif WASM.
+2. **`URL.revokeObjectURL` is not optional.** Every `createObjectURL` holds memory until it is
+   revoked. Revoke in the effect cleanup and whenever an image is replaced. This is the single
+   most likely defect in the viewer and it presents as "the tab got slow, then died".
+3. **Cap a batch at 20 files or ~100 MB**, and process beyond that sequentially rather than
+   refusing. Loom's own Phase 3 measured that decoding costs about three bytes per pixel
+   regardless of how the bytes arrive, so a batch's peak is set by dimensions, not file size —
+   and these tools are aimed at exactly the low-end devices where that ceiling is lowest.
+
+**The audience inverts one of our assumptions.** Loom's HEIC path is fastest on iPhones, where
+Safari decodes natively. These tools exist for Windows and Android, where it does not — so the
+WASM fallback is the *hot* path here, not the cold one, and its ~2 MB download is on the
+critical path for every real user of them.

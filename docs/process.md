@@ -46,7 +46,7 @@ So the loop is: **plan → approve → build test-first → verify with real out
 
 | Where | What | Committed? |
 |---|---|---|
-| `docs/` | `trd.md`, `plan.md`, `process.md`, `frontend.md` — the durable truth, including the repo layout | yes |
+| `docs/` | `trd.md`, `trd-utilities.md`, `plan.md`, `process.md`, `frontend.md` — the durable truth | yes |
 | `CHANGELOG.md` | One short entry per phase, newest on top | yes |
 | `agent-cache/knowledge.md` | Settled decisions and pitfalls. Cumulative — expand, never reset | no |
 | `agent-cache/plans/phase-N-<slug>.md` | The phase plan, its deviations, and its outcome | no |
