@@ -1,0 +1,80 @@
+/* Loom's visual language.
+ *
+ * The reference is a photographic contact sheet: the thing you make to check what you have.
+ * That is literally this product's job — proof that the photos are safely elsewhere — so the
+ * screen is dense, utilitarian and framed rather than airy and carded.
+ *
+ * Two rules hold the whole thing together: hairline frames are the only structural device
+ * (no shadows, no radius, no cards), and --verified is the only saturated colour, meaning
+ * exactly one thing wherever it appears.
+ */
+
+:root {
+  /* Cool fibre paper, not cream. Warm grounds cast every photograph they surround. */
+  --paper: #edeef0;
+  --paper-lift: #f6f7f8;
+  --ink: #16181d;
+  --graphite: #5a6070;
+  --frame: #c9cdd4;
+
+  /* The emotional payload of the product. Used for nothing that is not "safely in Drive". */
+  --verified: #1f6f4a;
+  --alert: #9b2c2c;
+
+  --t-hero: clamp(1.375rem, 1.05rem + 1.5vw, 2rem);
+  --t-body: 1rem;
+  --t-small: 0.8125rem;
+  --t-micro: 0.6875rem;
+
+  --gutter: 2px;
+  --pad: 1.25rem;
+
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: Archivo, ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--t-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Counts have to line up. That is an information requirement, which is why it is solved with
+ * figures rather than by introducing a second typeface. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+/* Keyboard focus stays visible everywhere. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
