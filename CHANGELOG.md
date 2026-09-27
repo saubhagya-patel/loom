@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Luma, **newest entry on top**.
+All notable changes to Loom, **newest entry on top**.
 
 This file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and commit messages
 follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). No versions are

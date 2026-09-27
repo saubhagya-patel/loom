@@ -5,7 +5,7 @@ import { errorHandler, notFound } from './errors.ts'
 import { healthHandler } from './health.ts'
 
 // Method, path, status and duration — and deliberately nothing else. A filename
-// must never reach a log line, which is also why no Luma endpoint takes one in a
+// must never reach a log line, which is also why no Loom endpoint takes one in a
 // query string (docs/plan.md §2.8).
 function requestLogger(logger: Logger): RequestHandler {
   return (req, res, next) => {

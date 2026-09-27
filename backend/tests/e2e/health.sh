@@ -35,7 +35,7 @@ else
 fi
 expect_body '{"status":"degraded","checks":{"database":"unavailable"}}' \
   'degraded body is exactly the degraded envelope'
-for secret in 'password' '3307' 'ECONNREFUSED' 'mysql' 'luma:' 'at Timeout' 'prisma'; do
+for secret in 'password' '3307' 'ECONNREFUSED' 'mysql' 'loom:' 'at Timeout' 'prisma'; do
   expect_body_lacks "$secret" "degraded body does not leak '$secret'"
 done
 

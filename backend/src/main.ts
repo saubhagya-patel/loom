@@ -52,6 +52,6 @@ try {
   await main()
 } catch (err) {
   // The logger may not exist yet — configuration is the first thing that can fail.
-  console.error('luma failed to start:', err instanceof Error ? err.message : err)
+  console.error('loom failed to start:', err instanceof Error ? err.message : err)
   process.exit(1)
 }

@@ -1,4 +1,4 @@
-# Luma — Build Process
+# Loom — Build Process
 
 **Companion to:** `docs/trd.md` (what to build), `docs/plan.md` (how it's phased)
 **Date:** 2026-09-10
@@ -21,7 +21,7 @@ technology and task type to skills, and an index of the skill store at `~/.agent
 
 **We run it minimally.** The full ceremony is six artifact types, a Simple/Full path choice and
 a ten-phase walk per task. Convergence ran it for a full project and produced direct evidence
-about what pays, which Luma inherits rather than re-testing:
+about what pays, which Loom inherits rather than re-testing:
 
 | zoro feature | Verdict carried over |
 |---|---|
@@ -98,7 +98,7 @@ worth authoring a skill for right now.
 
 From zoro's `backend.md`. Not phases — a list to walk at the end of each phase:
 
-| Concern | Where it bites hardest in Luma |
+| Concern | Where it bites hardest in Loom |
 |---|---|
 | requirement-analysis | discharged by `docs/trd.md`; `docs/plan.md` §7 maps every requirement to a phase |
 | api-design | four endpoints only (TRD §8) — the discipline is keeping it four |
@@ -191,7 +191,7 @@ own, so no wrapper. `no-floating-promises` is on for `src` and off for `tests`, 
 `node:test` owns the promise.
 
 **Logging** is `pino`, structured, first argument an object and second a short lowercase
-message: `logger.info({ userId }, 'session created')`. And the rule that makes Luma's privacy
+message: `logger.info({ userId }, 'session created')`. And the rule that makes Loom's privacy
 claim real, from `docs/plan.md` §2.8, restated here because it is a code-review item on every
 diff:
 

@@ -3,9 +3,9 @@
 
 PASS=0
 FAIL=0
-BODY_FILE="${TMPDIR:-/tmp}/luma-e2e-body.$$"
+BODY_FILE="${TMPDIR:-/tmp}/loom-e2e-body.$$"
 STATUS=''
-HEADERS_FILE="${TMPDIR:-/tmp}/luma-e2e-headers.$$"
+HEADERS_FILE="${TMPDIR:-/tmp}/loom-e2e-headers.$$"
 
 cleanup_body_files() { rm -f "$BODY_FILE" "$HEADERS_FILE"; }
 

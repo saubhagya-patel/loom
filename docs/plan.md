@@ -1,4 +1,4 @@
-# Luma V1 — Implementation Plan
+# Loom V1 — Implementation Plan
 
 **Companion to:** `docs/trd.md` (v1.0.0, architecture locked)
 **Status:** Draft
@@ -44,7 +44,7 @@ Convergence project; every pitfall it cost is already recorded in `agent-cache/k
 and is not to be rediscovered.
 
 **Outbound HTTP is `fetch`, not axios.** Convergence took axios because interceptors gave one
-home for a GitLab token and `responseType: 'stream'` kept a tarball off disk. Luma's server
+home for a GitLab token and `responseType: 'stream'` kept a tarball off disk. Loom's server
 makes two kinds of outbound call — Google's token endpoint and the Drive API — and neither
 needs an interceptor. `fetch` is in Node 25, and the transcode path in §2.7 wants a web
 `ReadableStream`, which is exactly what `fetch` accepts and returns.
@@ -91,7 +91,7 @@ TRD §4 supplies both a `schema.prisma` and the SQL DDL. Two things about that p
 database. There is no `_prisma_migrations` table and no drift detection. `schema.sql` stays
 authoritative and must rebuild from empty; change scripts stay numbered. Phase 1 adds a startup
 check that verifies the expected tables exist and names the file to run if they do not, so a
-missing table surfaces as an instruction rather than a bare `Table 'luma.users' doesn't exist`.
+missing table surfaces as an instruction rather than a bare `Table 'loom.users' doesn't exist`.
 
 **`DATABASE_URL` is the single database setting.** Prisma needs it for both `db pull` and the
 client, so config carries one URL rather than five variables that could drift from it.
@@ -110,7 +110,7 @@ privacy, that is the wrong default.
 
 **Decision:** the column stays `TEXT` and the schema keeps its shape; the value written into it
 is AES-256-GCM ciphertext, formatted `v1:<b64 iv>:<b64 tag>:<b64 ciphertext>`, keyed by
-`LUMA_TOKEN_KEY` (32 bytes, base64, required config, never committed). Encryption lives in
+`LOOM_TOKEN_KEY` (32 bytes, base64, required config, never committed). Encryption lives in
 exactly one module — `backend/src/auth/token-crypto.ts` — and nothing else in the codebase
 touches the raw value. The `v1:` prefix is there so key rotation has somewhere to go.
 
@@ -126,7 +126,7 @@ TRD §5.3 returns "an HTTP-only session cookie". TRD §8.3 then sends
 is the thing `httpOnly` exists to prevent.
 
 **Decision: the cookie is the only session mechanism.** `httpOnly`, `SameSite=Lax`, `Secure`
-in production, signed. `/api/auth/refresh` and `/api/user/config` read it; no Luma endpoint
+in production, signed. `/api/auth/refresh` and `/api/user/config` read it; no Loom endpoint
 reads an `Authorization` header. `Authorization: Bearer` still appears all over the client —
 but only ever aimed at `googleapis.com`, carrying Google's access token.
 
@@ -156,7 +156,7 @@ TRD §7 offers `IndexedDB` or `localStorage`. Take **IndexedDB**, and treat the 
 
 * A resumable session URI is a **pre-authorized write capability**: whoever holds it can PUT
   bytes into that user's Drive with no token at all. It is not a file id. It must never be
-  logged, never appear in a URL, and never be sent to a Luma endpoint except the one in §2.7.
+  logged, never appear in a URL, and never be sent to a Loom endpoint except the one in §2.7.
 * `localStorage` is synchronous, string-only and around 5 MB. The queue holds a record per
   in-flight file (URI, confirmed offset, total size, name, `lastModified`, chosen HEIC
   strategy) and wants a keyed store with transactions. `localStorage` would work today and be
@@ -251,7 +251,7 @@ scripts are the single entry point for both, so nothing needs running from a sub
 There is no Makefile: `npm run` is what a TypeScript project expects.
 
 ```
-luma/
+loom/
 ├── package.json          # workspaces: backend, web — root scripts are the entry point
 ├── docker-compose.yml    # MySQL 8 for local dev
 ├── CHANGELOG.md          # newest entry on top; every phase adds one
@@ -399,7 +399,7 @@ live health view · `npm run verify` as the gate every later phase runs.
 `backend/db/schema.sql` authored by hand (§4.1) and applied, then `prisma db pull` and
 `generate` · startup table-existence check (§2.1) · `token-crypto.ts` (§2.2) with round-trip
 and tamper-detection tests · `POST /api/auth/exchange`: code → Google tokens → upsert user →
-create "Luma Backup" folder if `app_folder_id` is null → set session cookie → return the access
+create "Loom Backup" folder if `app_folder_id` is null → set session cookie → return the access
 token · `POST /api/auth/refresh` · `GET /api/user/config` · `withSession` middleware (§2.3) ·
 `helmet` arrives here, with real endpoints to protect · client: GIS code client, the landing
 page, in-memory token with proactive refresh (§2.4).

@@ -8,7 +8,7 @@ build/
 coverage/
 *.tsbuildinfo
 
-# Env & secrets. LUMA_TOKEN_KEY and the Google client secret live here and
+# Env & secrets. LOOM_TOKEN_KEY and the Google client secret live here and
 # nowhere else in the tree.
 .env
 .env.*

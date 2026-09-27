@@ -12,7 +12,7 @@ export API_BASE='http://127.0.0.1:8099'
 export WEB_BASE='http://127.0.0.1:5174'
 API_PID=''
 WEB_PID=''
-LOG_DIR="${TMPDIR:-/tmp}/luma-e2e"
+LOG_DIR="${TMPDIR:-/tmp}/loom-e2e"
 mkdir -p "$LOG_DIR"
 
 # nvm's node shadows Homebrew's in a fresh shell and cannot run this project.
@@ -62,7 +62,7 @@ echo '· api on 8099'
 # teardown lands on a shell that has already gone and the server survives.
 (
   cd "$ROOT/backend" || exit 1
-  exec env LUMA_PORT=8099 LUMA_LOG_FORMAT=json node --env-file-if-exists=.env src/main.ts
+  exec env LOOM_PORT=8099 LOOM_LOG_FORMAT=json node --env-file-if-exists=.env src/main.ts
 ) >"$LOG_DIR/api.log" 2>&1 &
 API_PID=$!
 for _ in $(seq 1 60); do
@@ -84,7 +84,7 @@ echo
 echo '· vite on 5174'
 (
   cd "$ROOT/web" || exit 1
-  exec env LUMA_API_TARGET="$API_BASE" "$ROOT/node_modules/.bin/vite" --port 5174 --strictPort
+  exec env LOOM_API_TARGET="$API_BASE" "$ROOT/node_modules/.bin/vite" --port 5174 --strictPort
 ) >"$LOG_DIR/web.log" 2>&1 &
 WEB_PID=$!
 for _ in $(seq 1 60); do

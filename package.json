@@ -1,5 +1,5 @@
 {
-  "name": "luma",
+  "name": "loom",
   "private": true,
   "type": "module",
   "engines": {
@@ -10,22 +10,22 @@
     "web"
   ],
   "scripts": {
-    "dev": "npm run -w @luma/backend dev",
+    "dev": "npm run -w @loom/backend dev",
     "dev:web": "npm run -w web dev",
-    "typecheck": "npm run -w @luma/backend typecheck",
+    "typecheck": "npm run -w @loom/backend typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "npm run -w @luma/backend test",
+    "test": "npm run -w @loom/backend test",
     "test:e2e": "backend/tests/e2e/run.sh",
     "verify": "npm run typecheck && npm run lint && npm test && npm run web:lint && npm run web:build",
     "db:up": "docker compose up -d --wait mysql",
     "db:down": "docker compose stop mysql",
     "db:reset": "docker compose down -v",
-    "db:shell": "docker compose exec mysql mysql -uluma -pluma luma",
+    "db:shell": "docker compose exec mysql mysql -uloom -ploom loom",
     "db:logs": "docker compose logs -f mysql",
-    "prisma:generate": "npm run -w @luma/backend prisma:generate",
-    "prisma:pull": "npm run -w @luma/backend prisma:pull",
+    "prisma:generate": "npm run -w @loom/backend prisma:generate",
+    "prisma:pull": "npm run -w @loom/backend prisma:pull",
     "web:build": "npm run -w web build",
     "web:lint": "npm run -w web lint"
   },

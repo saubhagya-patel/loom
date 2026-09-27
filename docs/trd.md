@@ -1,6 +1,6 @@
 # Technical Architecture & Specification Document
 
-**Project Name:** luma
+**Project Name:** loom
 **Document Version:** 1.0.0  
 **Status:** Architecture Locked  
 

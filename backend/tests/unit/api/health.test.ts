@@ -47,7 +47,7 @@ const OK: Pinger = { ping: () => Promise.resolve() }
 // The message deliberately carries a host and credentials: a health check that
 // echoed its cause would leak exactly this, and only an assertion against real
 // secret-shaped text can catch it.
-const LEAKY_FAILURE = 'connect ECONNREFUSED 127.0.0.1:3307 (user=luma password=luma)'
+const LEAKY_FAILURE = 'connect ECONNREFUSED 127.0.0.1:3307 (user=loom password=loom)'
 const FAILING: Pinger = { ping: () => Promise.reject(new Error(LEAKY_FAILURE)) }
 const HANGING: Pinger = { ping: () => new Promise<void>(() => {}) }
 

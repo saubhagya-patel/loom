@@ -3,7 +3,7 @@
 // than Number, because Number() corrupts anything above 2^53.
 //
 // Must load before anything serializes: main.ts imports it first, and the test
-// script passes --import. Luma's own schema has no integer columns, so this is a
+// script passes --import. Loom's own schema has no integer columns, so this is a
 // net rather than a load-bearing conversion — but the wiring is the part that is
 // expensive to add later.
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { loadConfig } from '../../../src/config/config.ts'
 
-const VALID_URL = 'mysql://luma:luma@127.0.0.1:3307/luma'
+const VALID_URL = 'mysql://loom:loom@127.0.0.1:3307/loom'
 
 test('applies defaults when only the required values are present', () => {
   const cfg = loadConfig({ DATABASE_URL: VALID_URL })
@@ -18,11 +18,11 @@ test('applies defaults when only the required values are present', () => {
 test('every value can be overridden', () => {
   const cfg = loadConfig({
     DATABASE_URL: VALID_URL,
-    LUMA_HOST: '0.0.0.0',
-    LUMA_PORT: '9999',
-    LUMA_LOG_LEVEL: 'debug',
-    LUMA_LOG_FORMAT: 'json',
-    LUMA_SHUTDOWN_TIMEOUT_MS: '250',
+    LOOM_HOST: '0.0.0.0',
+    LOOM_PORT: '9999',
+    LOOM_LOG_LEVEL: 'debug',
+    LOOM_LOG_FORMAT: 'json',
+    LOOM_SHUTDOWN_TIMEOUT_MS: '250',
   })
 
   assert.equal(cfg.host, '0.0.0.0')
@@ -41,14 +41,14 @@ test('DATABASE_URL must be a URL', () => {
 })
 
 test('DATABASE_URL must use the mysql:// scheme', () => {
-  assert.throws(() => loadConfig({ DATABASE_URL: 'postgres://u:p@127.0.0.1:5432/luma' }), /mysql/)
+  assert.throws(() => loadConfig({ DATABASE_URL: 'postgres://u:p@127.0.0.1:5432/loom' }), /mysql/)
 })
 
 // docs/plan.md §2.8: the connection string carries a password, and a startup
 // failure is the most likely thing to be pasted into a chat or an issue.
 test('a configuration error never echoes the database password', () => {
   assert.throws(
-    () => loadConfig({ DATABASE_URL: 'postgres://luma:sup3rs3cr3t@127.0.0.1:5432/luma' }),
+    () => loadConfig({ DATABASE_URL: 'postgres://loom:sup3rs3cr3t@127.0.0.1:5432/loom' }),
     (err: unknown) => {
       assert.ok(err instanceof Error)
       assert.doesNotMatch(err.message, /sup3rs3cr3t/)
@@ -58,27 +58,27 @@ test('a configuration error never echoes the database password', () => {
 })
 
 test('an unknown log level is an error', () => {
-  assert.throws(() => loadConfig({ DATABASE_URL: VALID_URL, LUMA_LOG_LEVEL: 'chatty' }), /LOG_LEVEL/)
+  assert.throws(() => loadConfig({ DATABASE_URL: VALID_URL, LOOM_LOG_LEVEL: 'chatty' }), /LOG_LEVEL/)
 })
 
 test('an unknown log format is an error', () => {
   assert.throws(
-    () => loadConfig({ DATABASE_URL: VALID_URL, LUMA_LOG_FORMAT: 'yaml' }),
+    () => loadConfig({ DATABASE_URL: VALID_URL, LOOM_LOG_FORMAT: 'yaml' }),
     /LOG_FORMAT/,
   )
 })
 
 test('a non-numeric port is an error', () => {
-  assert.throws(() => loadConfig({ DATABASE_URL: VALID_URL, LUMA_PORT: 'eighty' }), /LUMA_PORT/)
+  assert.throws(() => loadConfig({ DATABASE_URL: VALID_URL, LOOM_PORT: 'eighty' }), /LOOM_PORT/)
 })
 
 test('a port outside 1-65535 is an error', () => {
-  assert.throws(() => loadConfig({ DATABASE_URL: VALID_URL, LUMA_PORT: '70000' }), /LUMA_PORT/)
+  assert.throws(() => loadConfig({ DATABASE_URL: VALID_URL, LOOM_PORT: '70000' }), /LOOM_PORT/)
 })
 
 test('a non-numeric shutdown timeout is an error', () => {
   assert.throws(
-    () => loadConfig({ DATABASE_URL: VALID_URL, LUMA_SHUTDOWN_TIMEOUT_MS: 'soon' }),
+    () => loadConfig({ DATABASE_URL: VALID_URL, LOOM_SHUTDOWN_TIMEOUT_MS: 'soon' }),
     /SHUTDOWN_TIMEOUT_MS/,
   )
 })
@@ -86,7 +86,7 @@ test('a non-numeric shutdown timeout is an error', () => {
 test('a zero or negative shutdown timeout is an error', () => {
   for (const value of ['0', '-1']) {
     assert.throws(
-      () => loadConfig({ DATABASE_URL: VALID_URL, LUMA_SHUTDOWN_TIMEOUT_MS: value }),
+      () => loadConfig({ DATABASE_URL: VALID_URL, LOOM_SHUTDOWN_TIMEOUT_MS: value }),
       /SHUTDOWN_TIMEOUT_MS/,
       `expected ${value} to be rejected`,
     )
@@ -98,18 +98,18 @@ test('a zero or negative shutdown timeout is an error', () => {
 test('reports every problem at once, not just the first', () => {
   try {
     loadConfig({
-      LUMA_PORT: 'eighty',
-      LUMA_LOG_LEVEL: 'chatty',
-      LUMA_SHUTDOWN_TIMEOUT_MS: '-1',
+      LOOM_PORT: 'eighty',
+      LOOM_LOG_LEVEL: 'chatty',
+      LOOM_SHUTDOWN_TIMEOUT_MS: '-1',
     })
     assert.fail('expected loadConfig to throw')
   } catch (err) {
     assert.ok(err instanceof Error)
     for (const name of [
       'DATABASE_URL',
-      'LUMA_PORT',
-      'LUMA_LOG_LEVEL',
-      'LUMA_SHUTDOWN_TIMEOUT_MS',
+      'LOOM_PORT',
+      'LOOM_LOG_LEVEL',
+      'LOOM_SHUTDOWN_TIMEOUT_MS',
     ]) {
       assert.match(err.message, new RegExp(name), `expected ${name} in the report`)
     }

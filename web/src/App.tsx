@@ -39,7 +39,7 @@ export default function App() {
 
   return (
     <main className="probe">
-      <h1>luma</h1>
+      <h1>loom</h1>
       <p className="tagline">Phase 0 scaffold — backend reachability check</p>
 
       {probe.state === 'loading' && <p className="pending">checking…</p>}

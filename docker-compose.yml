@@ -8,16 +8,16 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: luma-mysql
+    container_name: loom-mysql
     restart: unless-stopped
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: luma
-      MYSQL_USER: luma
-      MYSQL_PASSWORD: luma
+      MYSQL_DATABASE: loom
+      MYSQL_USER: loom
+      MYSQL_PASSWORD: loom
     ports:
       # 3307 on the host: Convergence's MySQL already owns 3306, and both
       # projects should be able to run at once. Bound to 127.0.0.1 rather than
@@ -29,7 +29,7 @@ services:
     healthcheck:
       # -h 127.0.0.1 forces TCP, exercising the same path the app uses rather
       # than the unix socket.
-      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uluma', '-pluma']
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uloom', '-ploom']
       interval: 5s
       timeout: 5s
       retries: 12

@@ -7,7 +7,7 @@ import { defineConfig } from 'vite'
 // (docs/plan.md §2.3).
 // Overridable so the e2e run can point at its own API port (8099) while a
 // development server holds 8080.
-const target = process.env['LUMA_API_TARGET'] ?? 'http://127.0.0.1:8080'
+const target = process.env['LOOM_API_TARGET'] ?? 'http://127.0.0.1:8080'
 
 export default defineConfig({
   plugins: [react()],
