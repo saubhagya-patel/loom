@@ -2,6 +2,7 @@ import './App.css'
 import { useSession } from './auth/useSession.ts'
 import { Emblem } from './ui/Emblem.tsx'
 import { Shell } from './ui/Shell.tsx'
+import { ToolLinks } from './ui/ToolLinks.tsx'
 
 export default function App() {
   const session = useSession()
@@ -60,6 +61,8 @@ export default function App() {
         {session.error ? <p className="notice notice--alert">{session.error}</p> : null}
 
         <p className="stream-note mono">Scope requested: drive.file · openid · email</p>
+
+        <ToolLinks tone="offer" />
       </div>
     </main>
   )

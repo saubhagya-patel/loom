@@ -3,6 +3,7 @@ import type { Account } from '../auth/useSession.ts'
 import { Emblem } from './Emblem.tsx'
 import { Gallery } from './Gallery.tsx'
 import { QueueScreen } from './QueueScreen.tsx'
+import { ToolLinks } from './ToolLinks.tsx'
 
 type View = 'photos' | 'queue'
 
@@ -66,6 +67,8 @@ export function Shell({ account, onSignOut }: { account: Account; onSignOut: () 
         <div hidden={view !== 'queue'}>
           <QueueScreen folderId={account.appFolderId} onActiveCount={setActive} />
         </div>
+
+        <ToolLinks />
       </main>
     </>
   )

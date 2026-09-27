@@ -937,3 +937,54 @@
   padding-left: 1.1rem;
   font-size: 11px;
 }
+
+/* --- ways into the tools ------------------------------------------------- */
+
+.tool-offer {
+  margin-top: 0.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
+  width: 100%;
+}
+
+.tool-offer-lead {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tool-offer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tool-offer-links .btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tool-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: var(--pad-xl);
+  padding-top: var(--pad-lg);
+  border-top: 1px solid var(--hairline);
+}
+
+.tool-links a {
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.tool-links a:hover {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
