@@ -1,4 +1,5 @@
 import js from '@eslint/js'
+import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
@@ -33,5 +34,11 @@ export default tseslint.config(
     // node:test's test() returns a promise the runner awaits itself.
     files: ['backend/tests/**/*.ts'],
     rules: { '@typescript-eslint/no-floating-promises': 'off' },
+  },
+  {
+    // Repo tooling: plain node scripts, so they get node globals rather than the browser
+    // defaults js.configs.recommended assumes.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: globals.node },
   },
 )

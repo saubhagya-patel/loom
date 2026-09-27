@@ -12,14 +12,40 @@ export type Drive = {
   ensureAppFolder: (accessToken: string, existingId: string | null) => Promise<string>
 }
 
+/**
+ * Does the stored folder still exist and is it out of the bin?
+ *
+ * **Every uncertain answer is `true`.** Creating a second `loom` folder is a worse outcome
+ * than a failing upload: it is visible mess in someone's Drive and it silently splits their
+ * backup across two places. So only a definite `404`, or `trashed: true`, causes a new one —
+ * a network blip, a rate limit or a 5xx all say "assume it is there".
+ */
+async function stillExists(accessToken: string, folderId: string): Promise<boolean> {
+  let res: Response
+  try {
+    res = await fetch(`${DRIVE_FILES}/${folderId}?fields=id,trashed`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  } catch {
+    return true
+  }
+
+  if (res.status === 404) return false
+  if (!res.ok) return true
+
+  const body: unknown = await res.json().catch(() => null)
+  return (body as { trashed?: unknown } | null)?.trashed !== true
+}
+
 export function createDrive(): Drive {
   return {
     ensureAppFolder: async (accessToken, existingId) => {
-      // The stored id wins. We do not re-check that the folder still exists on every
-      // sign-in: under drive.file we could only see it if we created it, a HEAD costs a
-      // round trip on the hot path, and a user who deleted the folder is a Phase 4 concern
-      // (the gallery will surface it) rather than a reason to slow down auth.
-      if (existingId) return existingId
+      // Phase 1 deliberately skipped this check to keep a round trip off the sign-in path.
+      // Phase 5 puts it back: sign-in happens once a session, so it is not a hot path, and
+      // the alternative is a user who deleted the folder in Drive getting upload failures
+      // that name nothing. The caller stores whatever id comes back, so a recreated folder
+      // is persisted without any further work.
+      if (existingId && (await stillExists(accessToken, existingId))) return existingId
 
       let res: Response
       try {
