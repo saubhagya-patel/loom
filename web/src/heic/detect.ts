@@ -26,6 +26,10 @@ export type HeicCheck = {
    * `size` that fails at read time, not at selection time, so `file.size` proves nothing.
    */
   unreadable: boolean
+  /** The ftyp brand, e.g. `heic`, `mif1`. Empty when the header could not be read. */
+  brand: string
+  /** The first 12 bytes, for the inspector panel in the standalone viewer. */
+  magicHex: string
 }
 
 function ascii(bytes: Uint8Array, start: number, end: number): string {
@@ -35,19 +39,21 @@ function ascii(bytes: Uint8Array, start: number, end: number): string {
 export async function checkHeic(file: File): Promise<HeicCheck> {
   const claimedByName = HEIC_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))
 
+  const blank = { isHeic: false, claimedByName, substituted: false, unreadable: true, brand: '', magicHex: '' }
+
   let head: Uint8Array
   try {
     head = new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer())
   } catch {
-    return { isHeic: false, claimedByName, substituted: false, unreadable: true }
+    return blank
   }
+  if (head.length < HEADER_BYTES) return blank
 
-  if (head.length < HEADER_BYTES) {
-    return { isHeic: false, claimedByName, substituted: false, unreadable: true }
-  }
+  const magicHex = [...head].map((b) => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+  const brand = ascii(head, 4, 8) === 'ftyp' ? ascii(head, 8, 12) : ''
+  const isHeic = brand !== '' && HEIC_BRANDS.has(brand)
 
-  const isHeic = ascii(head, 4, 8) === 'ftyp' && HEIC_BRANDS.has(ascii(head, 8, 12))
-  return { isHeic, claimedByName, substituted: claimedByName && !isHeic, unreadable: false }
+  return { isHeic, claimedByName, substituted: claimedByName && !isHeic, unreadable: false, brand, magicHex }
 }
 
 export async function isHeic(file: File): Promise<boolean> {

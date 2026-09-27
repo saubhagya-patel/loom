@@ -1,8 +1,9 @@
 import './App.css'
+import { Link } from 'react-router'
 import { useSession } from './auth/useSession.ts'
 import { Emblem } from './ui/Emblem.tsx'
 import { Shell } from './ui/Shell.tsx'
-import { ToolLinks } from './ui/ToolLinks.tsx'
+import { SiteFooter } from './ui/SiteFooter.tsx'
 
 export default function App() {
   const session = useSession()
@@ -19,31 +20,38 @@ export default function App() {
     return <Shell account={session.account} onSignOut={() => void session.signOut()} />
   }
 
-  // TRD §9.1. The assurances are the reason anyone would hand a backup tool their Drive, so
-  // they are stated as plain facts about behaviour rather than dressed as badges.
   return (
-    <main className="page">
-      <div className="landing">
-        <div className="brand brand--lg">
-          <Emblem size={40} />
-          <span className="wordmark wordmark--lg">LOOM</span>
-          <span className="chip label">Drive direct</span>
+    <>
+      <main className="page landing">
+        <div className="landing-brand">
+          <Emblem size={44} />
+          <span className="wordmark wordmark--lg">Loom</span>
         </div>
 
-        <h1 className="headline">Move photos off a full phone, into Drive you already own.</h1>
+        <span className="eyebrow label">
+          <span className="dot dot--verified" />
+          Direct browser to Google Drive
+        </span>
+
+        <h1 className="display">Move photos off a full phone, into Drive you already own.</h1>
+
+        <p className="lede">
+          Photos go straight from this browser to your own Google Drive. They are never uploaded
+          to us, because there is nothing of ours in the way.
+        </p>
 
         <ul className="assurances">
           <li>
             <span className="dot dot--verified" />
-            Photos travel from this browser straight to your Drive.
+            Files travel from this browser to your Drive, and nowhere else.
           </li>
           <li>
             <span className="dot dot--verified" />
-            loom sees only the files it put there — nothing else in your Drive.
+            Loom sees only the files it put there — nothing else in your Drive.
           </li>
           <li>
             <span className="dot dot--verified" />
-            Nothing about your photos is stored or logged on our side.
+            No filename, size or thumbnail is ever stored or logged on our side.
           </li>
         </ul>
 
@@ -60,10 +68,25 @@ export default function App() {
 
         {session.error ? <p className="notice notice--alert">{session.error}</p> : null}
 
-        <p className="stream-note mono">Scope requested: drive.file · openid · email</p>
+        <p className="landing-scope mono">Scope requested: drive.file · openid · email</p>
 
-        <ToolLinks tone="offer" />
-      </div>
-    </main>
+        {/* The tools are the only part of Loom that works for someone who will never sign in,
+            and they demonstrate the privacy claim rather than asserting it. */}
+        <section className="landing-tools">
+          <p className="landing-tools-lead">
+            Only need to open one HEIC, or convert a handful? No account required.
+          </p>
+          <div className="landing-tools-links">
+            <Link className="btn" to="/tools/heic-viewer">
+              HEIC viewer
+            </Link>
+            <Link className="btn" to="/tools/heic-to-zip">
+              HEIC to ZIP
+            </Link>
+          </div>
+        </section>
+      </main>
+      <SiteFooter />
+    </>
   )
 }

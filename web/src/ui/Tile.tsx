@@ -1,30 +1,24 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { thumbnailAt, type DriveFile } from '../drive/list.ts'
-import { kindOf } from './format.ts'
+import { bytes, kindOf } from './format.ts'
 
-// The frame is 190px comfortable / 124px dense, so this covers both on a retina screen
-// without asking Google for pixels nobody sees.
-const REQUEST_PX = 320
+const REQUEST_PX = 480
 const MAX_RETRIES = 2
 
 /**
- * One frame of the contact sheet: a hairline cell, a white matte, and the photograph inset
- * within it — the way a print sits inside a window mount.
+ * One cell of the contact sheet: a white plate, the photograph, and a footer carrying the
+ * name, what the file actually is, and its size.
  *
- * There is deliberately no verified tick here. The gallery *is* a listing of Drive, so every
- * frame in it would carry the same mark, which makes it decoration rather than information —
- * and emerald in this system means verification and nothing else. The claim is made once per
- * day-group in the volume header, where it is readable. The tick that does carry information
- * is the one in the upload queue, where `verified` gates TRD §9's deletion guardrail.
+ * No verified tick. The gallery *is* a listing of Drive, so a per-frame mark would be true of
+ * every tile and therefore say nothing — the claim is made once per volume header, where the
+ * count varies. Green stays reserved for things that are sometimes false.
  */
-export const Tile = memo(function Tile({ file }: { file: DriveFile }) {
+export const Tile = memo(function Tile({ file, index }: { file: DriveFile; index: number }) {
   const href = file.webViewLink ?? undefined
   const kind = kindOf(file.mimeType, file.name)
 
-  // lh3.googleusercontent.com rate-limits thumbnails, and a dense grid asks for dozens at
-  // once — measured returning 429 under exactly that load. So a failed frame backs off and
-  // tries again rather than leaving the browser's broken-image alt text on screen, and after
-  // a couple of attempts it degrades to a named plate like a file with no thumbnail at all.
+  // lh3.googleusercontent.com rate-limits thumbnails and a grid asks for dozens at once —
+  // measured returning 429 under exactly that load. Back off, retry, then degrade.
   const [attempt, setAttempt] = useState(0)
   const [exhausted, setExhausted] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -41,42 +35,49 @@ export const Tile = memo(function Tile({ file }: { file: DriveFile }) {
       setExhausted(true)
       return
     }
-    // Jittered, because every frame in the row failed at the same instant and retrying in
-    // lockstep would reproduce the burst that caused it.
-    const delay = 500 * 2 ** attempt + Math.random() * 400
-    timer.current = setTimeout(() => setAttempt((n) => n + 1), delay)
+    // Jittered: every frame failed at the same instant, and retrying in lockstep reproduces
+    // the burst that caused it.
+    timer.current = setTimeout(() => setAttempt((n) => n + 1), 500 * 2 ** attempt + Math.random() * 400)
   }
 
   const showImage = file.thumbnailLink !== null && !exhausted
 
   return (
-    <li className="frame">
-      <a className="frame-link" href={href} target="_blank" rel="noreferrer" title={file.name}>
-        <span className="matte">
+    <li className="cell">
+      <a className="cell-link" href={href} target="_blank" rel="noreferrer" title={file.name}>
+        <span className="cell-plate">
           {showImage ? (
-            <img
-              // Remounting on retry makes the browser re-request rather than reuse the
-              // failed response; a cache-busting query param would break the signed URL.
-              key={attempt}
-              src={thumbnailAt(file.thumbnailLink!, REQUEST_PX)}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              width={REQUEST_PX}
-              height={REQUEST_PX}
-              onError={onError}
-            />
+            <>
+              <img
+                key={attempt}
+                src={thumbnailAt(file.thumbnailLink!, REQUEST_PX)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                width={REQUEST_PX}
+                height={REQUEST_PX}
+                onError={onError}
+              />
+              <span className="cell-index mono">#{String(index).padStart(2, '0')}</span>
+            </>
           ) : (
-            /* Drive also has no thumbnail for a .mov until it has processed one. Either way a
-               named plate reads as a file we hold; a broken image reads as a bug. */
-            <span className="frame-blank">
-              <span className="label">{kind}</span>
-              <span className="frame-blank-name mono">{file.name}</span>
+            /* Drive makes no thumbnail for a .mov until it has processed one, and rate limits
+               can exhaust the retries. Either way this says what is happening. */
+            <span className="cell-pending">
+              <span className="cell-spinner" aria-hidden />
+              <span className="cell-pending-name mono">{file.name}</span>
+              <span className="cell-pending-note">
+                {exhausted ? 'Preview unavailable right now' : 'Drive is still making a preview'}
+              </span>
             </span>
           )}
         </span>
 
-        <span className="kind label">{kind}</span>
+        <span className="cell-foot">
+          <span className="cell-name mono">{file.name}</span>
+          <span className="cell-kind mono">{kind}</span>
+          <span className="cell-size mono">{file.size === null ? '—' : bytes(file.size)}</span>
+        </span>
       </a>
     </li>
   )

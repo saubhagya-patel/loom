@@ -1,51 +1,62 @@
-/* Loom's visual language — the "minimal cloud vault" system from design/.
+/* Loom's visual language — "warm ceramic utility", iteration 2 (design/iteration_2).
  *
- * Warm ceramic ground, obsidian ink, rose-ceramic hairlines, terracotta for the one action
- * that commits, restrained emerald for verified. Two typefaces with distinct jobs: Hanken
- * Grotesk carries language, Space Mono carries anything mechanical — counts, sizes, states,
- * paths. Depth comes from tonal stacking and hairlines, never from heavy shadows.
+ * The ground moved from warm ceramic to a cool near-white with a lavender cast, and the type
+ * split three ways: Epilogue carries headlines, Manrope carries language, JetBrains Mono
+ * carries anything mechanical. Terracotta still marks the one control that commits; green
+ * still means verified in Drive and nothing else.
+ *
+ * Unlike iteration 1, the exported Tailwind config *is* the source of truth here — there are
+ * no inline style overrides in the screens.
  */
 
 :root {
-  /* Substrates — warm, because a cool grey ground fought the ceramic palette it sits under. */
-  --canvas: #fbf7f4; /* unglazed ceramic; the app's ground */
-  --raised: #faf6f2; /* header band */
-  --surface: #ffffff; /* lifted panels, the matte inside a photo frame */
-  --recessed: #f3ece5; /* inset wells, segmented controls, progress tracks */
-  --bone: #faf3dd; /* warm tint, used sparingly */
+  /* Substrates — cool, lavender-cast near-whites. */
+  --canvas: #f9f9ff; /* app ground */
+  --surface: #ffffff; /* cards, panels, the plate a photo sits on */
+  --sunken: #ebedf9; /* hero band, inset wells, progress tracks */
+  --sunken-low: #f1f3fe; /* segmented controls, quiet fills */
+  --sunken-high: #e5e8f3; /* the status rail */
+  --inverse: #2c3039; /* dark chips and index badges */
+  --on-inverse: #eef0fb;
 
-  /* Ink */
-  --ink: #2b303a;
-  --muted: #5e6472;
-  --faint: #8c93a1;
+  /* Ink. The secondary is deliberately warm against the cool grounds. */
+  --ink: #181c23;
+  --muted: #52443b;
+  --faint: #847469;
 
-  /* Structure. This one colour does nearly all the framing work. */
-  --hairline: #eed2cc;
-  --hairline-strong: #e0c0b8;
+  --hairline: #dfe2ed;
 
-  /* Action — terracotta, and only for the control that commits something. */
-  --clay: #a1683a;
-  --clay-deep: #8e592f;
-  --clay-tint: #f8ebe3;
+  /* Terracotta: the control that commits, and nothing else. */
+  --clay: #a1683a; /* fills */
+  --clay-deep: #845024; /* text and links on light grounds */
+  --clay-tint: #ffdcc4; /* peach chips */
 
-  /* Verified. Means "confirmed in your Drive" and nothing else. */
-  --verified: #245f50;
-  --verified-tint: #e2efea;
-  --verified-line: #c4dfd6;
+  /* Green: "verified in Drive", and nothing else. */
+  --verified: #3a6759;
+  --verified-text: #406d5f;
+  --verified-tint: #bceddc;
 
-  --alert: #a52a2a;
-  --alert-tint: #fdf2f0;
+  --alert: #8d4843;
+  --alert-tint: #ffdad6;
 
-  /* Type */
-  --sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
-  --mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Type — three families, three jobs. */
+  --display: Epilogue, ui-sans-serif, system-ui, sans-serif;
+  --sans: Manrope, ui-sans-serif, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --r: 4px; /* controls, cells, badges */
-  --r-lg: 8px; /* sheets, panels, modals */
+  /* Radii stay small: 2px incidental, 4px controls, 8px panels, 12px the most anything gets. */
+  --r-xs: 2px;
+  --r: 4px;
+  --r-lg: 8px;
+  --r-xl: 12px;
 
-  --pad: 1rem;
-  --pad-lg: 1.5rem;
-  --pad-xl: 2.5rem;
+  --gutter: 1rem;
+  --margin: 2rem;
+  --s-xs: 0.25rem;
+  --s-sm: 0.5rem;
+  --s-md: 1rem;
+  --s-lg: 1.5rem;
+  --s-xl: 2.5rem;
 
   color-scheme: light;
 }
@@ -66,7 +77,7 @@ body {
 body {
   font-family: var(--sans);
   font-size: 14px;
-  line-height: 20px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -74,23 +85,24 @@ h1,
 h2,
 h3,
 p,
-figure {
+figure,
+ul {
   margin: 0;
 }
 
-/* Anything mechanical: counts, sizes, states, paths, chunk positions. */
+/* Anything mechanical: counts, sizes, states, paths, chunk positions, hex. */
 .mono {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* Engraved labels — uppercase mono with wide tracking, like a camera body. */
+/* Engraved labels — uppercase mono, wide tracking, like a camera body. */
 .label {
   font-family: var(--mono);
-  font-size: 10px;
-  line-height: 14px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -100,10 +112,11 @@ figure {
   border-radius: 999px;
   flex: none;
   display: inline-block;
+  background: currentColor;
 }
 
 :focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--clay-deep);
   outline-offset: 2px;
 }
 

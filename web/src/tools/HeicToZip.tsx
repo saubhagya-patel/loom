@@ -87,9 +87,10 @@ export function HeicToZip() {
 
   return (
     <ToolShell
+      eyebrow="Batch transcoding sandbox"
       title="Convert a pile of HEICs at once"
       lede="Drop as many as you like. They are converted on your machine and come back as one zip — nothing is uploaded anywhere."
-      other={{ to: '/tools/heic-viewer', label: '← View just one' }}
+      other={{ to: '/tools/heic-viewer', label: 'Switch to single viewer' }}
     >
       <div className="format-choice">
         <span className="label muted">Convert to</span>
