@@ -24,6 +24,8 @@
     "db:reset": "docker compose down -v",
     "db:shell": "docker compose exec mysql mysql -uluma -pluma luma",
     "db:logs": "docker compose logs -f mysql",
+    "prisma:generate": "npm run -w @luma/backend prisma:generate",
+    "prisma:pull": "npm run -w @luma/backend prisma:pull",
     "web:build": "npm run -w web build",
     "web:lint": "npm run -w web lint"
   },
